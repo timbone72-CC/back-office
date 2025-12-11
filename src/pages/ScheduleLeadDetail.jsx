@@ -150,7 +150,12 @@ export default function ScheduleLeadDetail() {
             <h1 className="text-2xl font-bold text-slate-900">
               {formData.type === 'lead' ? 'Lead Details' : 'Schedule Details'}
             </h1>
-            <p className="text-slate-500">#{recordId.slice(-6)}</p>
+            <p className="text-slate-500">
+              #{recordId.slice(-6)} 
+              {formData.client_profile_id && clients && (
+                <span className="ml-2">• {clients.find(c => c.id === formData.client_profile_id)?.name || 'Unknown Client'}</span>
+              )}
+            </p>
           </div>
         </div>
         <Button 
@@ -236,10 +241,12 @@ export default function ScheduleLeadDetail() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">None</SelectItem>
-                  {estimates?.filter(est => !formData.client_profile_id || est.client_profile_id === formData.client_profile_id).map(est => (
-                    <SelectItem key={est.id} value={est.id}>
-                      {est.title} (${est.total_amount?.toLocaleString() || est.amount?.toLocaleString() || '0'})
-                    </SelectItem>
+                  {estimates
+                    ?.filter(est => !formData.client_profile_id || est.client_profile_id === formData.client_profile_id)
+                    .map(est => (
+                      <SelectItem key={est.id} value={est.id}>
+                        {est.title} — ${est.total_amount?.toLocaleString() || est.amount?.toLocaleString() || '0'}
+                      </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

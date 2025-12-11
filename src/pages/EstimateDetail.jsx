@@ -47,7 +47,10 @@ export default function EstimateDetail() {
 
   const { data: client } = useQuery({
     queryKey: ['client', estimate?.client_profile_id],
-    queryFn: () => base44.entities.ClientProfile.list({ id: estimate.client_profile_id }).then(res => res[0]),
+    queryFn: async () => {
+       const res = await base44.entities.ClientProfile.filter({ id: estimate.client_profile_id });
+       return res && res.length > 0 ? res[0] : null;
+    },
     enabled: !!estimate?.client_profile_id
   });
 
