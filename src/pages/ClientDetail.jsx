@@ -30,7 +30,7 @@ export default function ClientDetail() {
   const { data: client, isLoading: clientLoading } = useQuery({
     queryKey: ['client', clientId],
     queryFn: async () => {
-      const res = await base44.entities.ClientProfile.list({ id: clientId });
+      const res = await base44.entities.ClientProfile.filter({ id: clientId });
       return res && res.length > 0 ? res[0] : null;
     },
     enabled: !!clientId

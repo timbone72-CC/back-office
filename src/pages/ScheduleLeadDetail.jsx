@@ -32,7 +32,7 @@ export default function ScheduleLeadDetail() {
   const { data: record, isLoading } = useQuery({
     queryKey: ['schedule-lead', recordId],
     queryFn: async () => {
-      const res = await base44.entities.ClientScheduleLead.list({ id: recordId });
+      const res = await base44.entities.ClientScheduleLead.filter({ id: recordId });
       return res && res.length > 0 ? res[0] : null;
     },
     enabled: !!recordId
@@ -41,6 +41,11 @@ export default function ScheduleLeadDetail() {
   const { data: clients } = useQuery({
     queryKey: ['clients-list'],
     queryFn: () => base44.entities.ClientProfile.list('name', 100),
+  });
+
+  const { data: estimates } = useQuery({
+    queryKey: ['estimates-list'],
+    queryFn: () => base44.entities.JobEstimate.list('title', 100),
   });
 
   const [formData, setFormData] = useState(null);
@@ -207,6 +212,26 @@ export default function ScheduleLeadDetail() {
                 <SelectContent>
                   {clients?.map(client => (
                     <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="col-span-full space-y-2">
+              <label className="text-sm font-medium text-slate-700">Linked Estimate</label>
+              <Select 
+                value={formData.linked_estimate_id || "none"} 
+                onValueChange={(val) => setFormData({...formData, linked_estimate_id: val === "none" ? null : val})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an estimate (optional)..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {estimates?.filter(est => !formData.client_profile_id || est.client_profile_id === formData.client_profile_id).map(est => (
+                    <SelectItem key={est.id} value={est.id}>
+                      {est.title} (${est.total_amount?.toLocaleString() || est.amount?.toLocaleString() || '0'})
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

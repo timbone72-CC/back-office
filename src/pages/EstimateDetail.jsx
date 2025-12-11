@@ -31,7 +31,7 @@ export default function EstimateDetail() {
   const { data: estimate, isLoading } = useQuery({
     queryKey: ['estimate', estimateId],
     queryFn: async () => {
-      const res = await base44.entities.JobEstimate.list({ id: estimateId });
+      const res = await base44.entities.JobEstimate.filter({ id: estimateId });
       return res && res.length > 0 ? res[0] : null;
     },
     enabled: !!estimateId
