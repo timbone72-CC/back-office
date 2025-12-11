@@ -28,12 +28,12 @@ export default function ScheduleLeads() {
 
   const { data: clients } = useQuery({
     queryKey: ['clients-list'],
-    queryFn: () => base44.entities.ClientProfile.list({ sort: { name: 1 } }),
+    queryFn: () => base44.entities.ClientProfile.list('name', 100),
   });
 
   const { data: records, isLoading } = useQuery({
     queryKey: ['schedule-leads'],
-    queryFn: () => base44.entities.ClientScheduleLead.list({ sort: { date: 1 } }), // Closest dates first
+    queryFn: () => base44.entities.ClientScheduleLead.list('date', 100), // Closest dates first
   });
 
   const [newItem, setNewItem] = useState({
@@ -171,7 +171,7 @@ export default function ScheduleLeads() {
               <Button 
                 onClick={() => createMutation.mutate(newItem)}
                 disabled={!newItem.client_profile_id || !newItem.title || createMutation.isPending}
-                className="bg-indigo-600 text-white"
+                className="bg-indigo-600 text-white w-full sm:w-auto"
               >
                 {createMutation.isPending ? 'Saving...' : 'Save Record'}
               </Button>

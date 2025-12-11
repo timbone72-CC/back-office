@@ -29,26 +29,20 @@ export default function ClientDetail() {
 
   const { data: client, isLoading: clientLoading } = useQuery({
     queryKey: ['client', clientId],
-    queryFn: () => base44.entities.ClientProfile.list({ id: clientId }).then(res => res[0]),
+    queryFn: () => base44.entities.ClientProfile.filter({ id: clientId }).then(res => res[0]),
     enabled: !!clientId
   });
 
   // Reverse Lookup / Related Records View
   const { data: estimates, isLoading: estimatesLoading } = useQuery({
     queryKey: ['client-estimates', clientId],
-    queryFn: () => base44.entities.JobEstimate.list({ 
-      query: { client_profile_id: clientId },
-      sort: { created_date: -1 }
-    }),
+    queryFn: () => base44.entities.JobEstimate.filter({ client_profile_id: clientId }, '-created_date', 100),
     enabled: !!clientId
   });
 
   const { data: scheduleLeads, isLoading: scheduleLoading } = useQuery({
     queryKey: ['client-schedule', clientId],
-    queryFn: () => base44.entities.ClientScheduleLead.list({ 
-      query: { client_profile_id: clientId },
-      sort: { date: -1 } 
-    }),
+    queryFn: () => base44.entities.ClientScheduleLead.filter({ client_profile_id: clientId }, '-date', 100),
     enabled: !!clientId
   });
 

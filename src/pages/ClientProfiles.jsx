@@ -42,7 +42,7 @@ export default function ClientProfiles() {
 
   const { data: clients, isLoading } = useQuery({
     queryKey: ['clients'],
-    queryFn: () => base44.entities.ClientProfile.list({ sort: { created_date: -1 } }),
+    queryFn: () => base44.entities.ClientProfile.list('-created_date', 100),
   });
 
   const createMutation = useMutation({

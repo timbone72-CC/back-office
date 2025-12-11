@@ -17,17 +17,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 export default function Dashboard() {
   const { data: clients, isLoading: loadingClients } = useQuery({
     queryKey: ['clients-count'],
-    queryFn: () => base44.entities.ClientProfile.list({ limit: 1 }),
+    queryFn: () => base44.entities.ClientProfile.list('-created_date', 1),
   });
 
   const { data: estimates, isLoading: loadingEstimates } = useQuery({
     queryKey: ['estimates-recent'],
-    queryFn: () => base44.entities.JobEstimate.list({ sort: { created_date: -1 }, limit: 5 }),
+    queryFn: () => base44.entities.JobEstimate.list('-created_date', 5),
   });
 
   const { data: leads, isLoading: loadingLeads } = useQuery({
     queryKey: ['leads-count'],
-    queryFn: () => base44.entities.ClientScheduleLead.list({ limit: 1 }),
+    queryFn: () => base44.entities.ClientScheduleLead.list('-created_date', 1),
   });
 
   const stats = [

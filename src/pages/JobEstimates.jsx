@@ -26,12 +26,12 @@ export default function JobEstimates() {
   // Need clients for the dropdown relationship
   const { data: clients } = useQuery({
     queryKey: ['clients-list'],
-    queryFn: () => base44.entities.ClientProfile.list({ sort: { name: 1 } }),
+    queryFn: () => base44.entities.ClientProfile.list('name', 100),
   });
 
   const { data: estimates, isLoading } = useQuery({
     queryKey: ['estimates'],
-    queryFn: () => base44.entities.JobEstimate.list({ sort: { created_date: -1 } }),
+    queryFn: () => base44.entities.JobEstimate.list('-created_date', 100),
   });
 
   const [newEstimate, setNewEstimate] = useState({
@@ -155,7 +155,7 @@ export default function JobEstimates() {
               <Button 
                 onClick={() => createMutation.mutate(newEstimate)}
                 disabled={!newEstimate.client_profile_id || !newEstimate.title || createMutation.isPending}
-                className="bg-indigo-600 text-white"
+                className="bg-indigo-600 text-white w-full sm:w-auto"
               >
                 {createMutation.isPending ? 'Saving...' : 'Save Estimate'}
               </Button>
