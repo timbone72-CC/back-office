@@ -86,21 +86,27 @@ export default function EstimateDetail() {
     const item = { ...newItems[index] };
     
     if (field === 'description') item.description = value;
-    if (field === 'quantity') item.quantity = parseFloat(value) || 0;
-    if (field === 'unit_cost') item.unit_cost = parseFloat(value) || 0;
+    // Store raw value to allow typing decimals
+    if (field === 'quantity') item.quantity = value;
+    if (field === 'unit_cost') item.unit_cost = value;
     
-    // Auto calculate line total
-    if (field === 'quantity' || field === 'unit_cost') {
-      item.total = item.quantity * item.unit_cost;
-    }
+    // Calculate line total for display and storage
+    const qty = parseFloat(item.quantity) || 0;
+    const cost = parseFloat(item.unit_cost) || 0;
+    item.total = qty * cost;
     
     newItems[index] = item;
     calculateTotals(newItems, formData.tax_rate);
   };
 
   const calculateTotals = (items, taxRate) => {
-    const subtotal = items.reduce((sum, item) => sum + (item.total || 0), 0);
-    const taxAmount = subtotal * (taxRate / 100);
+    // Calculate subtotal using parsed values
+    const subtotal = items.reduce((sum, item) => {
+      const lineTotal = (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_cost) || 0);
+      return sum + lineTotal;
+    }, 0);
+    
+    const taxAmount = subtotal * (parseFloat(taxRate) || 0 / 100);
     const total = subtotal + taxAmount;
     
     setFormData(prev => ({
@@ -154,177 +160,181 @@ export default function EstimateDetail() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => toast.info('PDF export coming soon!')}>
             <Printer className="w-4 h-4" /> Print/PDF
           </Button>
-          <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700">
+          <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700" onClick={() => toast.success('Converted to Job (Simulation)')}>
             <Briefcase className="w-4 h-4" /> Convert to Job
           </Button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Estimate Information</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Title</label>
-                <Input 
-                  value={formData.title} 
-                  onChange={(e) => setFormData({...formData, title: e.target.value})}
-                />
+        <div className="md:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Estimate Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">Title</label>
+                  <Input 
+                    value={formData.title} 
+                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700">Date</label>
+                  <Input 
+                    type="date"
+                    value={formData.date} 
+                    onChange={(e) => setFormData({...formData, date: e.target.value})}
+                  />
+                </div>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-slate-700">Date</label>
-                <Input 
-                  type="date"
-                  value={formData.date} 
-                  onChange={(e) => setFormData({...formData, date: e.target.value})}
-                />
+                <label className="text-sm font-medium text-slate-700">Status</label>
+                <Select 
+                  value={formData.status} 
+                  onValueChange={(val) => setFormData({...formData, status: val})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="sent">Sent</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-700">Status</label>
-              <Select 
-                value={formData.status} 
-                onValueChange={(val) => setFormData({...formData, status: val})}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="sent">Sent</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex justify-between text-sm">
-              <span className="text-slate-500">Subtotal</span>
-              <span className="font-medium">${formData.subtotal?.toFixed(2) || '0.00'}</span>
-            </div>
-            <div className="flex justify-between items-center text-sm">
-              <span className="text-slate-500">Tax Rate (%)</span>
-              <Input 
-                type="number" 
-                className="w-20 h-8 text-right" 
-                value={formData.tax_rate}
-                onChange={(e) => handleTaxChange(e.target.value)}
-              />
-            </div>
-            <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
-              <span className="font-bold text-slate-900">Total Estimate</span>
-              <span className="font-bold text-2xl text-indigo-600">${formData.total_amount?.toFixed(2) || '0.00'}</span>
-            </div>
-            <Button 
-              className="w-full mt-4 bg-green-600 hover:bg-green-700 gap-2"
-              onClick={() => updateMutation.mutate(formData)}
-              disabled={updateMutation.isPending}
-            >
-              <Save className="w-4 h-4" /> 
-              {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ImageIcon className="w-5 h-5 text-slate-500" />
-            Job Photos
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <PhotoUpload 
-            photos={formData.photos} 
-            onChange={(photos) => setFormData({...formData, photos})} 
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Line Items</CardTitle>
-          <Button size="sm" variant="outline" onClick={addItem} className="gap-2">
-            <Plus className="w-4 h-4" /> Add Item
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[40%]">Description</TableHead>
-                <TableHead className="w-[15%]">Quantity</TableHead>
-                <TableHead className="w-[15%]">Unit Cost</TableHead>
-                <TableHead className="w-[20%] text-right">Line Total</TableHead>
-                <TableHead className="w-[10%]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {formData.items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-slate-500">
-                    No items added yet. Click "Add Item" to start.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                formData.items.map((item, index) => (
-                  <TableRow key={index}>
-                    <TableCell>
-                      <Input 
-                        value={item.description} 
-                        onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                        placeholder="Item description"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Input 
-                        type="number" 
-                        min="0"
-                        value={item.quantity} 
-                        onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
-                        <Input 
-                          type="number" 
-                          min="0"
-                          className="pl-7"
-                          value={item.unit_cost} 
-                          onChange={(e) => handleItemChange(index, 'unit_cost', e.target.value)}
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right font-medium">
-                      ${item.total?.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => removeItem(index)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </TableCell>
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Line Items</CardTitle>
+              <Button size="sm" variant="outline" onClick={addItem} className="gap-2">
+                <Plus className="w-4 h-4" /> Add Item
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[40%]">Description</TableHead>
+                    <TableHead className="w-[15%]">Quantity</TableHead>
+                    <TableHead className="w-[15%]">Unit Cost</TableHead>
+                    <TableHead className="w-[20%] text-right">Line Total</TableHead>
+                    <TableHead className="w-[10%]"></TableHead>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {formData.items.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-8 text-slate-500">
+                        No items added yet. Click "Add Item" to start.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    formData.items.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell>
+                          <Input 
+                            value={item.description} 
+                            onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                            placeholder="Item description"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input 
+                            type="number" 
+                            min="0"
+                            value={item.quantity} 
+                            onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+                            <Input 
+                              type="number" 
+                              min="0"
+                              className="pl-7"
+                              value={item.unit_cost} 
+                              onChange={(e) => handleItemChange(index, 'unit_cost', e.target.value)}
+                            />
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          ${(parseFloat(item.total) || 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" onClick={() => removeItem(index)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-slate-500" />
+                Job Photos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PhotoUpload 
+                photos={formData.photos} 
+                onChange={(photos) => setFormData({...formData, photos})} 
+              />
+            </CardContent>
+          </Card>
+        </div>
+
+        <div>
+          <Card className="sticky top-6">
+            <CardHeader>
+              <CardTitle>Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Subtotal</span>
+                <span className="font-medium">${formData.subtotal?.toFixed(2) || '0.00'}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-500">Tax Rate (%)</span>
+                <Input 
+                  type="number" 
+                  className="w-20 h-8 text-right" 
+                  value={formData.tax_rate}
+                  onChange={(e) => handleTaxChange(e.target.value)}
+                />
+              </div>
+              <div className="pt-4 border-t border-slate-100 flex justify-between items-center">
+                <span className="font-bold text-slate-900">Total Estimate</span>
+                <span className="font-bold text-2xl text-indigo-600">${formData.total_amount?.toFixed(2) || '0.00'}</span>
+              </div>
+              <Button 
+                className="w-full mt-4 bg-green-600 hover:bg-green-700 gap-2"
+                onClick={() => updateMutation.mutate(formData)}
+                disabled={updateMutation.isPending}
+              >
+                <Save className="w-4 h-4" /> 
+                {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }
