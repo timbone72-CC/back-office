@@ -106,7 +106,8 @@ export default function EstimateDetail() {
       return sum + lineTotal;
     }, 0);
     
-    const taxAmount = subtotal * (parseFloat(taxRate) || 0 / 100);
+    const rate = parseFloat(taxRate) || 0;
+    const taxAmount = subtotal * (rate / 100);
     const total = subtotal + taxAmount;
     
     setFormData(prev => ({
