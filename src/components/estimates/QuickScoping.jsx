@@ -76,11 +76,11 @@ export default function QuickScoping({ onAddItem, clientNotes }) {
   };
 
   return (
-    <Card className="h-full border-indigo-100 bg-indigo-50/50">
-      <CardHeader>
+    <Card className="h-[300px] border-indigo-100 bg-indigo-50/50 flex flex-col overflow-hidden">
+      <CardHeader className="py-3 px-4 shrink-0">
         <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-indigo-900">
-            <ShoppingCart className="w-5 h-5" />
+            <CardTitle className="flex items-center gap-2 text-indigo-900 text-base">
+            <ShoppingCart className="w-4 h-4" />
             Quick Scoping Wizard
             </CardTitle>
             {clientNotes && (
@@ -91,8 +91,8 @@ export default function QuickScoping({ onAddItem, clientNotes }) {
             )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex gap-3">
+      <CardContent className="space-y-2 px-4 pb-3 flex-1 overflow-hidden flex flex-col">
+        <div className="flex gap-3 shrink-0">
           <div className="space-y-1 flex-1">
             <label className="text-xs font-semibold text-slate-500 uppercase">Job Type</label>
             <Select value={jobType} onValueChange={setJobType}>
@@ -124,7 +124,7 @@ export default function QuickScoping({ onAddItem, clientNotes }) {
           </div>
         </div>
 
-        <div className="pt-2">
+        <div className="flex-1 overflow-y-auto min-h-0 pt-2">
            {!jobType || !selectedSupplierId ? (
              <p className="text-sm text-slate-500 italic">Select job type and supplier to view materials.</p>
            ) : materialsLoading || pricingLoading ? (
@@ -132,7 +132,7 @@ export default function QuickScoping({ onAddItem, clientNotes }) {
            ) : materials?.length === 0 ? (
              <p className="text-sm text-slate-500">No materials found for this category.</p>
            ) : (
-             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[250px] overflow-y-auto pr-1">
+             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pr-1">
                {materials.map(material => {
                  const price = getPriceRange(material.id);
                  const isPreferred = preferences?.keywords?.some(k => material.item_name.toLowerCase().includes(k.toLowerCase()));
