@@ -24,14 +24,12 @@ export default function Layout({ children }) {
 
   const navigation = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
-    { name: 'Client Profiles', icon: Users, path: '/clients' },
-    { name: 'Job Estimates', icon: FileText, path: '/estimates' },
-    { name: 'Procurement', icon: ShoppingBag, path: '/procurement' },
-    { name: 'Inventory', icon: Package, path: '/inventory' },
+    { name: 'Clients', icon: Users, path: '/clients' },
+    { name: 'Estimates & Jobs', icon: FileText, path: '/estimates' },
+    { name: 'Schedule', icon: Calendar, path: '/schedule-leads' },
     { name: 'Our Work', icon: ImageIcon, path: '/portfolio' },
+    { name: 'Inventory', icon: Package, path: '/inventory' },
     { name: 'Calculators', icon: Calculator, path: '/calculators' },
-    { name: 'Schedule & Leads', icon: Calendar, path: '/schedule-leads' },
-    { name: 'Data Import', icon: Database, path: '/import' },
   ];
 
   const isActive = (path) => {

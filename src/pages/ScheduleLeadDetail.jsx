@@ -180,7 +180,7 @@ export default function ScheduleLeadDetail() {
           </Link>
           <div>
             <h1 className="text-2xl font-bold text-slate-900">
-              {formData.type === 'lead' ? 'Lead Details' : 'Schedule Details'}
+              {formData.type === 'lead' ? 'Lead Details' : 'Appointment Details'}
             </h1>
             <p className="text-slate-500">
               #{recordId.slice(-6)} 
@@ -230,7 +230,7 @@ export default function ScheduleLeadDetail() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="lead">Lead</SelectItem>
-                  <SelectItem value="schedule">Schedule / Appointment</SelectItem>
+                  <SelectItem value="schedule">Appointment</SelectItem>
                 </SelectContent>
               </Select>
             </div>

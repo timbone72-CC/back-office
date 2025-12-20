@@ -206,9 +206,6 @@ export default function EstimateDetail() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => toast.info('PDF export coming soon!')}>
-            <Printer className="w-4 h-4" /> Print/PDF
-          </Button>
           <Dialog>
             <DialogTrigger asChild>
               <Button variant="outline" className="gap-2">
