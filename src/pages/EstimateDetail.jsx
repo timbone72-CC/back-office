@@ -168,6 +168,19 @@ export default function EstimateDetail() {
           <Button variant="outline" className="gap-2" onClick={() => toast.info('PDF export coming soon!')}>
             <Printer className="w-4 h-4" /> Print/PDF
           </Button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Calculator className="w-4 h-4" /> Calculators
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Handyman Tools</DialogTitle>
+              </DialogHeader>
+              <HandymanCalculators />
+            </DialogContent>
+          </Dialog>
           <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700" onClick={() => toast.success('Converted to Job (Simulation)')}>
             <Briefcase className="w-4 h-4" /> Convert to Job
           </Button>
