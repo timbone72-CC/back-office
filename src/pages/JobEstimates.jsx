@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, FileText, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { Plus, Search, FileText, CheckCircle, XCircle, Clock, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -47,6 +47,27 @@ export default function JobEstimates() {
 
   const navigate = useNavigate();
 
+  const handleExport = async () => {
+    try {
+      toast.info("Generating export...");
+      const { data } = await base44.functions.invoke('exportFinancials');
+      
+      const blob = new Blob([data], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `financials_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+      toast.success("Export complete");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to export data");
+    }
+  };
+
   const createMutation = useMutation({
     mutationFn: (data) => {
         const payload = {
@@ -85,13 +106,22 @@ export default function JobEstimates() {
           <h1 className="text-3xl font-bold text-slate-900">Job Estimates</h1>
           <p className="text-slate-500 mt-1">Create and track estimates for your clients</p>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200">
-              <Plus className="w-4 h-4 mr-2" />
-              New Estimate
-            </Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={handleExport}
+            className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200">
+                <Plus className="w-4 h-4 mr-2" />
+                New Estimate
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Create New Estimate</DialogTitle>
@@ -170,10 +200,11 @@ export default function JobEstimates() {
               >
                 {createMutation.isPending ? 'Saving...' : 'Save Estimate'}
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+              </DialogFooter>
+              </DialogContent>
+              </Dialog>
+              </div>
+              </div>
 
       <div className="flex gap-2">
         <div className="relative flex-1">
