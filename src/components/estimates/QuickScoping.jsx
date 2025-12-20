@@ -67,8 +67,7 @@ export default function QuickScoping({ onAddItem, clientNotes }) {
       description: material.item_name,
       quantity: 1,
       unit_cost: unitCost,
-      total: unitCost, // 1 * unitCost
-      supplier_id: selectedSupplierId
+      total: unitCost // 1 * unitCost
     });
   };
 
