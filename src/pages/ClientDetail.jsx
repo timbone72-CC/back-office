@@ -13,10 +13,14 @@ import {
   Pencil
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { format } from 'date-fns';
@@ -58,6 +62,31 @@ export default function ClientDetail() {
     queryKey: ['client-schedule', clientId],
     queryFn: () => base44.entities.ClientScheduleLead.filter({ client_profile_id: clientId }, '-date', 100),
     enabled: !!clientId
+  });
+
+  const queryClient = useQueryClient();
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState(null);
+
+  const handleEditOpen = () => {
+      setEditForm({
+          name: client.name,
+          phone: client.phone || '',
+          email: client.email || '',
+          address: client.address || '',
+          permanent_notes: client.permanent_notes || ''
+      });
+      setIsEditOpen(true);
+  };
+
+  const updateClientMutation = useMutation({
+      mutationFn: (data) => base44.entities.ClientProfile.update(clientId, data),
+      onSuccess: () => {
+          queryClient.invalidateQueries(['client', clientId]);
+          setIsEditOpen(false);
+          toast.success("Client profile updated");
+      },
+      onError: () => toast.error("Failed to update profile")
   });
 
   if (clientLoading) return <div className="p-8"><Skeleton className="h-64 w-full rounded-xl" /></div>;
@@ -116,9 +145,75 @@ export default function ClientDetail() {
               </div>
             </div>
             <div className="flex gap-3 mt-4 md:mt-0">
-              <Button variant="outline" className="gap-2">
-                <Pencil className="w-4 h-4" /> Edit Profile
-              </Button>
+              <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="gap-2" onClick={handleEditOpen}>
+                    <Pencil className="w-4 h-4" /> Edit Profile
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Edit Client Profile</DialogTitle>
+                  </DialogHeader>
+                  {editForm && (
+                    <div className="grid gap-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-name">Client Name</Label>
+                        <Input 
+                          id="edit-name" 
+                          value={editForm.name} 
+                          onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-phone">Phone</Label>
+                          <Input 
+                            id="edit-phone" 
+                            value={editForm.phone} 
+                            onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="edit-email">Email</Label>
+                          <Input 
+                            id="edit-email" 
+                            value={editForm.email} 
+                            onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-address">Job Site Address</Label>
+                        <Input 
+                          id="edit-address" 
+                          value={editForm.address} 
+                          onChange={(e) => setEditForm({...editForm, address: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-notes">Permanent Notes (Preferences)</Label>
+                        <Input 
+                          id="edit-notes" 
+                          value={editForm.permanent_notes} 
+                          onChange={(e) => setEditForm({...editForm, permanent_notes: e.target.value})}
+                          placeholder="e.g. Prefers Cedar, Gate Code: 1234"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancel</Button>
+                    <Button 
+                      onClick={() => updateClientMutation.mutate(editForm)}
+                      disabled={!editForm?.name || updateClientMutation.isPending}
+                      className="bg-indigo-600 text-white"
+                    >
+                      {updateClientMutation.isPending ? 'Saving...' : 'Save Changes'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
 
