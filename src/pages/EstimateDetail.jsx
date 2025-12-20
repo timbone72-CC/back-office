@@ -16,7 +16,6 @@ import {
 import PhotoUpload from '@/components/PhotoUpload';
 import QuickScoping from '@/components/estimates/QuickScoping';
 import ScopingAlerts from '@/components/estimates/ScopingAlerts';
-import KitSelector from '@/components/estimates/KitSelector';
 import HandymanCalculators from '@/components/calculators/HandymanCalculators';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -136,11 +135,6 @@ export default function EstimateDetail() {
   const addItem = (itemData = null) => {
     const newItem = itemData || { description: '', quantity: 1, unit_cost: 0, total: 0 };
     const newItems = [...formData.items, newItem];
-    calculateTotals(newItems, formData.tax_rate);
-  };
-
-  const addKitItems = (kitItems) => {
-    const newItems = [...formData.items, ...kitItems];
     calculateTotals(newItems, formData.tax_rate);
   };
 
@@ -330,12 +324,9 @@ export default function EstimateDetail() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Line Items</CardTitle>
-              <div className="flex gap-2">
-                <KitSelector onKitSelect={addKitItems} />
-                <Button size="sm" variant="outline" onClick={() => addItem()} className="gap-2">
-                  <Plus className="w-4 h-4" /> Add Item
-                </Button>
-              </div>
+              <Button size="sm" variant="outline" onClick={addItem} className="gap-2">
+                <Plus className="w-4 h-4" /> Add Item
+              </Button>
             </CardHeader>
             <CardContent>
               <Table>
