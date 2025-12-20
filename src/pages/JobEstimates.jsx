@@ -48,14 +48,26 @@ export default function JobEstimates() {
   const navigate = useNavigate();
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.JobEstimate.create({
-      ...data,
-      amount: parseFloat(data.amount) || 0
-    }),
+    mutationFn: (data) => {
+        const payload = {
+            title: data.title,
+            client_profile_id: data.client_profile_id,
+            status: data.status,
+            date: data.date,
+            total_amount: parseFloat(data.amount) || 0,
+            items: []
+        };
+        return base44.entities.JobEstimate.create(payload);
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries(['estimates']);
       setIsCreateOpen(false);
+      toast.success('Estimate created successfully');
       navigate(`${createPageUrl('EstimateDetail')}?id=${data.id}`);
+    },
+    onError: (e) => {
+        console.error(e);
+        toast.error('Failed to create estimate');
     }
   });
 
