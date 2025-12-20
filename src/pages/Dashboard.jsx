@@ -7,53 +7,67 @@ import {
   Calendar, 
   ArrowUpRight,
   TrendingUp,
-  Clock
+  Clock,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { isAfter, parseISO, subDays } from 'date-fns';
 
 export default function Dashboard() {
-  const { data: clients, isLoading: loadingClients } = useQuery({
-    queryKey: ['clients-count'],
-    queryFn: () => base44.entities.ClientProfile.list('-created_date', 1),
-  });
-
+  // Fetch more data to calculate KPIs
   const { data: estimates, isLoading: loadingEstimates } = useQuery({
-    queryKey: ['estimates-recent'],
-    queryFn: () => base44.entities.JobEstimate.list('-created_date', 5),
+    queryKey: ['estimates-list'],
+    queryFn: () => base44.entities.JobEstimate.list('-created_date', 100),
   });
 
   const { data: leads, isLoading: loadingLeads } = useQuery({
-    queryKey: ['leads-count'],
-    queryFn: () => base44.entities.ClientScheduleLead.list('-created_date', 1),
+    queryKey: ['leads-list'],
+    queryFn: () => base44.entities.ClientScheduleLead.list('-date', 100),
   });
+
+  // KPI Calculations
+  const pendingEstimates = estimates?.filter(e => e.status === 'draft' || e.status === 'sent').length || 0;
+  
+  const approvedJobsRecent = estimates?.filter(e => {
+    if (e.status !== 'approved') return false;
+    // Consider "recent" as last 30 days
+    // Fallback to true if no date
+    if (!e.date) return true; 
+    return isAfter(parseISO(e.date), subDays(new Date(), 30));
+  }).length || 0;
+
+  const upcomingAppointments = leads?.filter(l => {
+    return l.status === 'scheduled' && l.date && isAfter(parseISO(l.date), new Date());
+  }).length || 0;
 
   const stats = [
     {
-      title: "Total Clients",
-      value: loadingClients ? "..." : (clients?.length || 0) > 0 ? "Active" : "0", 
-      // Note: without a total count endpoint, we can only list. 
-      // For a real dashboard we'd calculate totals differently or just show 'View All'
-      // I'll stick to a simple placeholder or just list recent activity for now.
-      icon: Users,
-      color: "bg-blue-500",
-      link: "ClientProfiles"
-    },
-    {
-      title: "Active Estimates",
-      value: loadingEstimates ? "..." : "View",
+      title: "Pending Estimates",
+      value: loadingEstimates ? "..." : pendingEstimates,
       icon: FileText,
-      color: "bg-emerald-500",
-      link: "JobEstimates"
+      color: "bg-amber-500",
+      link: "JobEstimates",
+      desc: "Draft & Sent"
     },
     {
-      title: "Schedule & Leads",
-      value: loadingLeads ? "..." : "Manage",
+      title: "Approved Jobs (30d)",
+      value: loadingEstimates ? "..." : approvedJobsRecent,
+      icon: CheckCircle2,
+      color: "bg-emerald-500",
+      link: "JobEstimates",
+      desc: "Recently won"
+    },
+    {
+      title: "Upcoming Schedule",
+      value: loadingLeads ? "..." : upcomingAppointments,
       icon: Calendar,
-      color: "bg-violet-500",
-      link: "ScheduleLeads"
+      color: "bg-indigo-500",
+      link: "ScheduleLeads",
+      desc: "Future appointments"
     }
   ];
 
@@ -74,6 +88,7 @@ export default function Dashboard() {
                   <h3 className="text-2xl font-bold text-slate-900 mt-2 group-hover:text-indigo-600 transition-colors">
                     {stat.value}
                   </h3>
+                  {stat.desc && <p className="text-xs text-slate-400 mt-1">{stat.desc}</p>}
                 </div>
                 <div className={`p-4 rounded-2xl ${stat.color} bg-opacity-10 group-hover:bg-opacity-20 transition-all`}>
                   <stat.icon className={`w-6 h-6 ${stat.color.replace('bg-', 'text-')}`} />
@@ -101,7 +116,7 @@ export default function Dashboard() {
               </div>
             ) : estimates && estimates.length > 0 ? (
               <div className="space-y-4">
-                {estimates.map((est) => (
+                {estimates.slice(0, 5).map((est) => (
                   <div key={est.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
                     <div>
                       <p className="font-medium text-slate-900">{est.title}</p>
