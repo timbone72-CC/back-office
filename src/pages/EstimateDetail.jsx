@@ -8,7 +8,6 @@ import {
   Save, 
   Printer, 
   Briefcase, 
-  Loader2,
   Calculator,
   Image as ImageIcon,
   StickyNote,
@@ -70,8 +69,6 @@ export default function EstimateDetail() {
     },
     enabled: !!estimate?.client_profile_id
   });
-
-  const navigate = React.useNavigate();
 
   const { data: suppliers } = useQuery({
     queryKey: ['suppliers-list'],
@@ -169,37 +166,9 @@ export default function EstimateDetail() {
   const handleTaxChange = (value) => {
     const rate = parseFloat(value) || 0;
     calculateTotals(formData.items, rate);
-    };
+  };
 
-    const convertToJobMutation = useMutation({
-    mutationFn: async () => {
-      // 1. Create Job
-      const job = await base44.entities.Job.create({
-        client_profile_id: estimate.client_profile_id,
-        estimate_id: estimateId,
-        title: estimate.title,
-        status: 'active',
-        start_date: new Date().toISOString().split('T')[0],
-        items: estimate.items,
-        total_amount: estimate.total_amount
-      });
-
-      // 2. Update Estimate Status
-      await base44.entities.JobEstimate.update(estimateId, { status: 'converted' });
-
-      return job;
-    },
-    onSuccess: (job) => {
-      toast.success('Successfully converted to Job!');
-      navigate(`${createPageUrl('JobDetail')}?id=${job.id}`);
-    },
-    onError: (e) => {
-      console.error(e);
-      toast.error('Failed to convert to job');
-    }
-    });
-
-    if (isLoading) return <div className="p-8"><Skeleton className="h-96 w-full" /></div>;
+  if (isLoading) return <div className="p-8"><Skeleton className="h-96 w-full" /></div>;
   if (!estimate && !isLoading) return (
     <div className="p-12 text-center bg-white rounded-xl shadow-sm border border-slate-200">
       <h2 className="text-xl font-bold text-slate-900 mb-2">Estimate Not Found</h2>
@@ -255,13 +224,8 @@ export default function EstimateDetail() {
               <HandymanCalculators />
             </DialogContent>
           </Dialog>
-          <Button 
-            className="gap-2 bg-indigo-600 hover:bg-indigo-700" 
-            onClick={() => convertToJobMutation.mutate()}
-            disabled={convertToJobMutation.isPending || estimate.status === 'converted'}
-          >
-            {convertToJobMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Briefcase className="w-4 h-4" />} 
-            {estimate.status === 'converted' ? 'Converted' : 'Convert to Job'}
+          <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700" onClick={() => toast.success('Converted to Job (Simulation)')}>
+            <Briefcase className="w-4 h-4" /> Convert to Job
           </Button>
         </div>
       </div>
