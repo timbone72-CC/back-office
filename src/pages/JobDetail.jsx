@@ -20,9 +20,11 @@ import {
   CreditCard,
   Star,
   MessageSquare,
-  Copy
+  Copy,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import PhotoUpload from '@/components/PhotoUpload';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -80,8 +82,7 @@ export default function JobDetail() {
     mutationFn: (data) => base44.entities.Job.update(jobId, data),
     onSuccess: () => {
       queryClient.invalidateQueries(['job', jobId]);
-      // Quiet success for small updates, or toast for big ones? 
-      // Let's rely on UI updates for now, maybe small toast
+      toast.success("Job updated");
     }
   });
 
@@ -292,6 +293,21 @@ export default function JobDetail() {
             <JobTimeTracker job={job} onUpdate={handleTimeUpdate} />
             <JobTasks tasks={job.tasks} onUpdate={handleTaskUpdate} />
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-slate-500" />
+                Job Photos (Before & After)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PhotoUpload 
+                photos={job.photos || []} 
+                onChange={(photos) => updateJobMutation.mutate({ photos })} 
+              />
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">

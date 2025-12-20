@@ -28,7 +28,7 @@ export default function Layout({ children }) {
     { name: 'Job Estimates', icon: FileText, path: '/estimates' },
     { name: 'Procurement', icon: ShoppingBag, path: '/procurement' },
     { name: 'Inventory', icon: Package, path: '/inventory' },
-    { name: 'Portfolio', icon: ImageIcon, path: '/portfolio' },
+    { name: 'Our Work', icon: ImageIcon, path: '/portfolio' },
     { name: 'Calculators', icon: Calculator, path: '/calculators' },
     { name: 'Schedule & Leads', icon: Calendar, path: '/schedule-leads' },
     { name: 'Data Import', icon: Database, path: '/import' },

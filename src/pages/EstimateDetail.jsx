@@ -154,10 +154,12 @@ export default function EstimateDetail() {
       const jobData = {
         title: formData.title,
         client_profile_id: formData.client_profile_id,
+        linked_estimate_id: estimateId,
         budget: formData.total_amount,
         material_list: formData.items,
         scoping_notes: client?.permanent_notes || '',
-        status: 'in_progress'
+        status: 'in_progress',
+        photos: formData.photos // Copy photos from estimate to job
       };
       const newJob = await base44.entities.Job.create(jobData);
 

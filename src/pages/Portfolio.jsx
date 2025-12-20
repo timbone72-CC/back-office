@@ -16,30 +16,26 @@ export default function Portfolio() {
   const [filterType, setFilterType] = useState('all'); // all, before, after
   const [searchTerm, setSearchTerm] = useState('');
 
-  const { data: estimates, isLoading } = useQuery({
-    queryKey: ['portfolio-estimates'],
+  const { data: jobs, isLoading } = useQuery({
+    queryKey: ['portfolio-jobs'],
     queryFn: async () => {
-      // Get approved or converted estimates
-      const all = await base44.entities.JobEstimate.list('-date', 100);
-      return all.filter(e => e.status === 'approved' || e.status === 'converted');
+      // Fetch completed jobs
+      return base44.entities.Job.filter({ status: 'completed' }, '-updated_date', 100);
     }
   });
 
-  // Need clients to display client names if needed, but estimate title might be enough.
-  // We'll trust estimate title for now or fetch clients if we want to be fancy.
-  
-  // Flatten photos
-  const allPhotos = (estimates || []).flatMap(est => {
-    const estPhotos = est.photos || [];
-    return estPhotos.map(p => {
+  // Flatten photos from Completed Jobs
+  const allPhotos = (jobs || []).flatMap(job => {
+    const jobPhotos = job.photos || [];
+    return jobPhotos.map(p => {
       // Handle legacy string photos vs new objects
       const photoObj = typeof p === 'string' ? { url: p, type: 'general' } : p;
       return {
         ...photoObj,
-        jobTitle: est.title,
-        jobId: est.id,
-        date: est.date,
-        status: est.status
+        jobTitle: job.title,
+        jobId: job.id,
+        date: job.updated_date, // Use job updated date (completion date roughly)
+        status: job.status
       };
     });
   });
@@ -75,9 +71,6 @@ export default function Portfolio() {
         doc.text(group.title, 20, y);
         y += 10;
         
-        // Just listing photos as text links/descriptions for now as adding actual images to PDF via client-side jsPDF 
-        // without proxying them (due to CORS) is tricky. 
-        // We'll just list the counts or "Before/After" sets.
         const beforeCount = group.photos.filter(p => p.type === 'before').length;
         const afterCount = group.photos.filter(p => p.type === 'after').length;
         
@@ -100,8 +93,8 @@ export default function Portfolio() {
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Project Portfolio</h1>
-          <p className="text-slate-500 mt-1">Showcase of approved and converted jobs</p>
+          <h1 className="text-3xl font-bold text-slate-900">Our Work</h1>
+          <p className="text-slate-500 mt-1">Showcase of completed projects</p>
         </div>
         <Button onClick={generatePDF} variant="outline">
           <Download className="w-4 h-4 mr-2" /> Export PDF
@@ -113,7 +106,7 @@ export default function Portfolio() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
           <Input 
             className="pl-9"
-            placeholder="Search jobs..."
+            placeholder="Search projects..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -160,8 +153,8 @@ export default function Portfolio() {
                 </h3>
                 <div className="flex justify-between items-center mt-2 text-xs text-slate-500">
                   <span>{photo.date ? format(new Date(photo.date), 'MMM d, yyyy') : 'No date'}</span>
-                  <Badge variant="outline" className="text-[10px] px-1.5 h-5">
-                    {photo.status}
+                  <Badge variant="outline" className="text-[10px] px-1.5 h-5 bg-green-50 text-green-700 border-green-200">
+                    Completed
                   </Badge>
                 </div>
               </CardContent>
@@ -171,8 +164,8 @@ export default function Portfolio() {
       ) : (
         <div className="text-center py-12 bg-slate-50 rounded-xl border-dashed border-2 border-slate-200">
           <ImageIcon className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <h3 className="text-lg font-medium text-slate-900">No photos found</h3>
-          <p className="text-slate-500">Try adjusting your filters or upload photos to your estimates.</p>
+          <h3 className="text-lg font-medium text-slate-900">No completed projects yet</h3>
+          <p className="text-slate-500">Complete some jobs and add "After" photos to see them here.</p>
         </div>
       )}
     </div>
