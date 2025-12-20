@@ -14,7 +14,10 @@ import {
   FileText,
   Plus,
   Save,
-  Trash2
+  Trash2,
+  Printer,
+  TrendingUp,
+  CreditCard
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +27,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -114,6 +118,36 @@ export default function JobDetail() {
     });
   };
 
+  const generateInvoice = async () => {
+    try {
+      const { data } = await base44.functions.invoke('generateInvoicePdf', { jobId });
+      // Create blob and download
+      const blob = new Blob([data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Invoice_${job.title.replace(/\s+/g, '_')}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
+      toast.success('Invoice generated');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to generate invoice');
+    }
+  };
+
+  // Financial Calculations
+  const laborRate = job.labor_rate || 75;
+  const totalMinutes = (job.time_logs || []).reduce((acc, log) => acc + (log.duration_minutes || 0), 0);
+  const laborCost = (totalMinutes / 60) * laborRate;
+  const materialCost = (job.material_list || []).reduce((acc, item) => acc + (item.total || 0), 0);
+  const totalCost = laborCost + materialCost;
+  const revenue = job.budget || 0;
+  const profit = revenue - totalCost;
+  const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+
   if (isLoading) return <div className="p-8"><Skeleton className="h-96 w-full" /></div>;
   if (!job) return <div className="p-8">Job not found.</div>;
 
@@ -137,6 +171,93 @@ export default function JobDetail() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">
           
+          {/* Financials & Profitability Section */}
+          <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white border-none shadow-xl">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-lg flex items-center gap-2 text-slate-100">
+                <TrendingUp className="w-5 h-5 text-emerald-400" />
+                Job Financials
+              </CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={generateInvoice}
+                className="bg-white/10 border-white/20 text-white hover:bg-white/20 gap-2"
+              >
+                <Printer className="w-4 h-4" /> Generate Invoice
+              </Button>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                <div>
+                  <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Revenue</p>
+                  <p className="text-2xl font-bold text-white">${revenue.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Total Cost</p>
+                  <p className="text-2xl font-bold text-red-300">${totalCost.toFixed(2)}</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Mat: ${materialCost.toFixed(0)} | Lab: ${laborCost.toFixed(0)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Net Profit</p>
+                  <p className={`text-2xl font-bold ${profit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    ${profit.toFixed(2)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-400 text-xs uppercase tracking-wider mb-1">Margin</p>
+                  <p className={`text-2xl font-bold ${margin >= 20 ? 'text-emerald-400' : 'text-yellow-400'}`}>
+                    {margin.toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+              
+              <Separator className="bg-slate-700 my-4" />
+              
+              <div className="flex flex-col md:flex-row items-end md:items-center justify-between gap-4">
+                 <div className="flex items-center gap-4 flex-1 w-full">
+                    <div className="space-y-1 flex-1">
+                      <Label className="text-slate-300 text-xs">Payment Status</Label>
+                      <Select 
+                        value={job.payment_status} 
+                        onValueChange={(val) => updateJobMutation.mutate({ payment_status: val })}
+                      >
+                        <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="unpaid">Unpaid</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="partial">Partial</SelectItem>
+                          <SelectItem value="paid">Paid</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1 flex-1">
+                      <Label className="text-slate-300 text-xs">Payment Date</Label>
+                      <Input 
+                        type="date" 
+                        className="bg-slate-800 border-slate-600 text-white"
+                        value={job.payment_date || ''}
+                        onChange={(e) => updateJobMutation.mutate({ payment_date: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-1 w-24">
+                      <Label className="text-slate-300 text-xs">Labor Rate</Label>
+                      <Input 
+                        type="number" 
+                        className="bg-slate-800 border-slate-600 text-white"
+                        value={job.labor_rate || 75}
+                        onChange={(e) => updateJobMutation.mutate({ labor_rate: parseFloat(e.target.value) })}
+                      />
+                    </div>
+                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <JobTimeTracker job={job} onUpdate={handleTimeUpdate} />
             <JobTasks tasks={job.tasks} onUpdate={handleTaskUpdate} />
