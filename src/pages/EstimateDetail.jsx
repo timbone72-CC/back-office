@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
@@ -40,6 +40,7 @@ export default function EstimateDetail() {
   const urlParams = new URLSearchParams(location.search);
   const estimateId = urlParams.get('id');
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   console.log("EstimateDetail: ID from URL:", estimateId);
 
@@ -147,6 +148,35 @@ export default function EstimateDetail() {
     calculateTotals(formData.items, rate);
   };
 
+  const convertToJobMutation = useMutation({
+    mutationFn: async () => {
+      // 1. Create Job Record
+      const jobData = {
+        title: formData.title,
+        client_profile_id: formData.client_profile_id,
+        budget: formData.total_amount,
+        material_list: formData.items,
+        scoping_notes: client?.permanent_notes || '',
+        status: 'in_progress'
+      };
+      const newJob = await base44.entities.Job.create(jobData);
+
+      // 2. Update Estimate Status
+      await base44.entities.JobEstimate.update(estimateId, { status: 'converted' });
+      
+      return newJob;
+    },
+    onSuccess: (newJob) => {
+      queryClient.invalidateQueries(['estimate', estimateId]);
+      toast.success('Converted to Job successfully!');
+      navigate(`${createPageUrl('JobDetail')}?id=${newJob.id}`);
+    },
+    onError: (e) => {
+      console.error(e);
+      toast.error('Failed to convert to job');
+    }
+  });
+
   if (isLoading) return <div className="p-8"><Skeleton className="h-96 w-full" /></div>;
   if (!estimate && !isLoading) return (
     <div className="p-12 text-center bg-white rounded-xl shadow-sm border border-slate-200">
@@ -203,8 +233,17 @@ export default function EstimateDetail() {
               <HandymanCalculators />
             </DialogContent>
           </Dialog>
-          <Button className="gap-2 bg-indigo-600 hover:bg-indigo-700" onClick={() => toast.success('Converted to Job (Simulation)')}>
-            <Briefcase className="w-4 h-4" /> Convert to Job
+          <Button 
+            className="gap-2 bg-indigo-600 hover:bg-indigo-700" 
+            onClick={() => {
+                if (confirm('Are you sure you want to convert this estimate to an active Job?')) {
+                    convertToJobMutation.mutate();
+                }
+            }}
+            disabled={convertToJobMutation.isPending}
+          >
+            <Briefcase className="w-4 h-4" /> 
+            {convertToJobMutation.isPending ? 'Converting...' : 'Convert to Job'}
           </Button>
         </div>
       </div>
