@@ -11,6 +11,7 @@ import DataImport from './pages/DataImport';
 import JobDetail from './pages/JobDetail';
 import Inventory from './pages/Inventory';
 import Portfolio from './pages/Portfolio';
+import JobKits from './pages/JobKits';
 import __Layout from './Layout.jsx';
 
 
@@ -28,6 +29,7 @@ export const PAGES = {
     "JobDetail": JobDetail,
     "Inventory": Inventory,
     "Portfolio": Portfolio,
+    "JobKits": JobKits,
 }
 
 export const pagesConfig = {
