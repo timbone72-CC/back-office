@@ -34,12 +34,13 @@ export default function Inventory() {
     quantity: 0,
     unit: 'each',
     reorder_point: 5,
-    supplier_id: ''
+    supplier_id: '',
+    barcode: ''
   });
 
   const handleOpenCreate = () => {
     setEditingItem(null);
-    setFormData({ item_name: '', quantity: 0, unit: 'each', reorder_point: 5, supplier_id: '' });
+    setFormData({ item_name: '', quantity: 0, unit: 'each', reorder_point: 5, supplier_id: '', barcode: '' });
     setIsCreateOpen(true);
   };
 
@@ -50,7 +51,8 @@ export default function Inventory() {
       quantity: item.quantity,
       unit: item.unit,
       reorder_point: item.reorder_point,
-      supplier_id: item.supplier_id || ''
+      supplier_id: item.supplier_id || '',
+      barcode: item.barcode || ''
     });
     setIsCreateOpen(true);
   };
@@ -139,6 +141,14 @@ export default function Inventory() {
                 type="number"
                 value={formData.reorder_point}
                 onChange={(e) => setFormData({...formData, reorder_point: parseFloat(e.target.value)})}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Barcode / SKU</Label>
+              <Input 
+                value={formData.barcode}
+                onChange={(e) => setFormData({...formData, barcode: e.target.value})}
+                placeholder="Scan or enter barcode"
               />
             </div>
             <div className="space-y-2">
