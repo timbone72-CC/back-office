@@ -9,9 +9,12 @@ import {
   Printer, 
   Briefcase, 
   Calculator,
-  Image as ImageIcon
+  Image as ImageIcon,
+  StickyNote,
+  User
 } from 'lucide-react';
 import PhotoUpload from '@/components/PhotoUpload';
+import QuickScoping from '@/components/estimates/QuickScoping';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -119,8 +122,9 @@ export default function EstimateDetail() {
     }));
   };
 
-  const addItem = () => {
-    const newItems = [...formData.items, { description: '', quantity: 1, unit_cost: 0, total: 0 }];
+  const addItem = (itemData = null) => {
+    const newItem = itemData || { description: '', quantity: 1, unit_cost: 0, total: 0 };
+    const newItems = [...formData.items, newItem];
     calculateTotals(newItems, formData.tax_rate);
   };
 
@@ -172,6 +176,33 @@ export default function EstimateDetail() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">
+          {/* Customer Context Section */}
+          {client && (
+             <Card className="bg-amber-50 border-amber-200">
+               <CardHeader className="pb-2">
+                 <CardTitle className="text-amber-900 text-lg flex items-center gap-2">
+                    <StickyNote className="w-5 h-5" />
+                    Customer Context
+                 </CardTitle>
+               </CardHeader>
+               <CardContent>
+                 <div className="flex gap-4 items-start">
+                    <User className="w-10 h-10 text-amber-600 bg-amber-100 rounded-full p-2 shrink-0" />
+                    <div>
+                      <div className="font-semibold text-amber-900">{client.name}</div>
+                      <div className="text-sm text-amber-800 mt-1">
+                        {client.permanent_notes ? (
+                          <p>{client.permanent_notes}</p>
+                        ) : (
+                          <p className="italic text-amber-700/70">No permanent notes available for this client.</p>
+                        )}
+                      </div>
+                    </div>
+                 </div>
+               </CardContent>
+             </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>Estimate Information</CardTitle>
@@ -301,7 +332,9 @@ export default function EstimateDetail() {
           </Card>
         </div>
 
-        <div>
+        <div className="space-y-6">
+          <QuickScoping onAddItem={addItem} />
+
           <Card className="sticky top-6">
             <CardHeader>
               <CardTitle>Summary</CardTitle>
