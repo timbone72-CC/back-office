@@ -20,6 +20,9 @@ export default function HandymanCalculators() {
         <TabsContent value="framing">
           <FramingCalculator />
         </TabsContent>
+        <TabsContent value="paint">
+          <PaintCalculator />
+        </TabsContent>
         <TabsContent value="specs">
           <SpecSheet />
         </TabsContent>
