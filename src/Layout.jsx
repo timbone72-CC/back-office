@@ -3,15 +3,16 @@ import { base44 } from '@/api/base44Client';
 import { Link, useLocation } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { 
-  Users, 
-  FileText, 
-  Calendar, 
-  LayoutDashboard, 
-  Menu, 
-  X,
-  Briefcase,
-  Calculator,
-  ShoppingBag
+Users, 
+FileText, 
+Calendar, 
+LayoutDashboard, 
+Menu, 
+X,
+Briefcase,
+Calculator,
+ShoppingBag,
+Database
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -26,6 +27,7 @@ export default function Layout({ children }) {
     { name: 'Procurement', icon: ShoppingBag, path: '/procurement' },
     { name: 'Calculators', icon: Calculator, path: '/calculators' },
     { name: 'Schedule & Leads', icon: Calendar, path: '/schedule-leads' },
+    { name: 'Data Import', icon: Database, path: '/import' },
   ];
 
   const isActive = (path) => {
@@ -72,6 +74,7 @@ export default function Layout({ children }) {
                 item.path.slice(1) === 'estimates' ? 'JobEstimates' : 
                 item.path.slice(1) === 'calculators' ? 'Calculators' :
                 item.path.slice(1) === 'procurement' ? 'MaterialProcurement' :
+                item.path.slice(1) === 'import' ? 'DataImport' :
                 'ScheduleLeads'
               )}>
                 <div 
@@ -123,6 +126,7 @@ export default function Layout({ children }) {
                   item.path.slice(1) === 'estimates' ? 'JobEstimates' : 
                   item.path.slice(1) === 'calculators' ? 'Calculators' :
                   item.path.slice(1) === 'procurement' ? 'MaterialProcurement' :
+                  item.path.slice(1) === 'import' ? 'DataImport' :
                   'ScheduleLeads'
                 )}
                 onClick={() => setIsMobileMenuOpen(false)}
