@@ -105,7 +105,7 @@ export default function Layout({ children }) {
       </aside>
 
       {/* Mobile Header */}
-      <div className="md:hidden fixed w-full bg-white z-50 border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+      <div className="md:hidden fixed w-full bg-white z-[101] border-b border-slate-200 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
             <Briefcase className="w-5 h-5 text-white" />
@@ -119,7 +119,7 @@ export default function Layout({ children }) {
 
       {/* Mobile Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-40 bg-white pt-20 px-4">
+        <div className="md:hidden fixed inset-0 z-[100] bg-white pt-20 px-4">
           <nav className="space-y-2">
             {navigation.map((item) => (
               <Link 
@@ -136,7 +136,7 @@ export default function Layout({ children }) {
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 <div className={`flex items-center gap-3 px-4 py-4 rounded-xl mb-2 ${
-                  isActive(item.path) ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'
+                  isActive(item.path) ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-slate-900 font-medium hover:bg-slate-50'
                 }`}>
                   <item.icon className="w-5 h-5" />
                   {item.name}
