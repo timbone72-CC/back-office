@@ -169,6 +169,9 @@ export default function JobDetail() {
     }
   };
 
+  if (isLoading) return <div className="p-8"><Skeleton className="h-96 w-full" /></div>;
+  if (!job) return <div className="p-8">Job not found.</div>;
+
   // Financial Calculations
   const laborRate = job.labor_rate || 75;
   const totalMinutes = (job.time_logs || []).reduce((acc, log) => acc + (log.duration_minutes || 0), 0);
@@ -178,9 +181,6 @@ export default function JobDetail() {
   const revenue = job.budget || 0;
   const profit = revenue - totalCost;
   const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
-
-  if (isLoading) return <div className="p-8"><Skeleton className="h-96 w-full" /></div>;
-  if (!job) return <div className="p-8">Job not found.</div>;
 
   return (
     <div className="space-y-8 pb-12">
