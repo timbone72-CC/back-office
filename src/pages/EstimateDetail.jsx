@@ -16,6 +16,7 @@ import {
 import PhotoUpload from '@/components/PhotoUpload';
 import QuickScoping from '@/components/estimates/QuickScoping';
 import HandymanCalculators from '@/components/calculators/HandymanCalculators';
+import ScopingAlerts from '@/components/estimates/ScopingAlerts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -236,6 +237,8 @@ export default function EstimateDetail() {
                </CardContent>
              </Card>
           )}
+
+          <ScopingAlerts items={formData.items} />
 
           <Card>
             <CardHeader>
