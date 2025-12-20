@@ -70,6 +70,11 @@ export default function EstimateDetail() {
     enabled: !!estimate?.client_profile_id
   });
 
+  const { data: suppliers } = useQuery({
+    queryKey: ['suppliers-list'],
+    queryFn: () => base44.entities.Supplier.list('store_name', 100),
+  });
+
   const [formData, setFormData] = useState(null);
 
   useEffect(() => {
@@ -99,6 +104,7 @@ export default function EstimateDetail() {
     const item = { ...newItems[index] };
     
     if (field === 'description') item.description = value;
+    if (field === 'supplier_id') item.supplier_id = value;
     // Store raw value to allow typing decimals
     if (field === 'quantity') item.quantity = value;
     if (field === 'unit_cost') item.unit_cost = value;
@@ -294,17 +300,18 @@ export default function EstimateDetail() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[40%]">Description</TableHead>
-                    <TableHead className="w-[15%]">Quantity</TableHead>
+                    <TableHead className="w-[30%]">Description</TableHead>
+                    <TableHead className="w-[20%]">Supplier</TableHead>
+                    <TableHead className="w-[10%]">Qty</TableHead>
                     <TableHead className="w-[15%]">Unit Cost</TableHead>
-                    <TableHead className="w-[20%] text-right">Line Total</TableHead>
+                    <TableHead className="w-[15%] text-right">Line Total</TableHead>
                     <TableHead className="w-[10%]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {formData.items.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-slate-500">
+                      <TableCell colSpan={6} className="text-center py-8 text-slate-500">
                         No items added yet. Click "Add Item" to start.
                       </TableCell>
                     </TableRow>
@@ -317,6 +324,22 @@ export default function EstimateDetail() {
                             onChange={(e) => handleItemChange(index, 'description', e.target.value)}
                             placeholder="Item description"
                           />
+                        </TableCell>
+                        <TableCell>
+                          <Select 
+                            value={item.supplier_id || 'unassigned'} 
+                            onValueChange={(val) => handleItemChange(index, 'supplier_id', val === 'unassigned' ? null : val)}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Select supplier" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="unassigned">Unassigned</SelectItem>
+                              {suppliers?.map(s => (
+                                <SelectItem key={s.id} value={s.id}>{s.store_name}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </TableCell>
                         <TableCell>
                           <Input 
