@@ -211,7 +211,7 @@ export default function EstimateDetail() {
   };
 
   const addItem = (itemData = null) => {
-    const newItem = itemData || { description: '', quantity: 1, unit_cost: 0, total: 0 };
+    const newItem = itemData || { description: '', quantity: 0, unit_cost: 0, total: 0 };
     const newItems = [...formData.items, newItem];
     calculateTotals(newItems, formData.tax_rate);
     toast.success("Item added to estimate");
@@ -239,6 +239,7 @@ export default function EstimateDetail() {
       // Ensure all derived states are refreshed immediately
       queryClient.invalidateQueries({ queryKey: ['estimate', estimateId] });
       queryClient.invalidateQueries({ queryKey: ['estimates'] }); // Update list view
+      queryClient.invalidateQueries({ queryKey: ['inventory'] }); // Ensure main inventory cache is cleared
       queryClient.invalidateQueries({ queryKey: ['inventory-list'] }); // Reflect stock deductions
       queryClient.invalidateQueries({ queryKey: ['active-jobs'] }); // Show new job in lists
 
@@ -282,12 +283,25 @@ export default function EstimateDetail() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20">
+      <style>{`
+        @media print {
+          @page { margin: 1cm; size: auto; }
+          body * { visibility: hidden; }
+          .printable, .printable * { visibility: visible; }
+          .printable { position: relative; left: 0; top: 0; }
+          .no-print, .no-print * { display: none !important; }
+          /* Hide global layout elements */
+          aside, nav, .fixed { display: none !important; }
+          /* Ensure text colors print correctly */
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+      `}</style>
       
       {/* Dynamic Header */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      <div className="printable bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div className="space-y-1 w-full md:w-auto">
           <div className="flex items-center gap-3 mb-2">
-            <Link to={createPageUrl('JobEstimates')}>
+            <Link to={createPageUrl('JobEstimates')} className="no-print">
                <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100 rounded-full -ml-2">
                  <ArrowLeft className="w-5 h-5 text-slate-400" />
                </Button>
@@ -350,7 +364,7 @@ export default function EstimateDetail() {
               <div className="text-4xl font-bold text-indigo-600">${formData.total_amount?.toFixed(2) || '0.00'}</div>
            </div>
            
-           <div className="flex flex-wrap gap-2 justify-end w-full">
+           <div className="flex flex-wrap gap-2 justify-end w-full no-print">
               <Button variant="outline" onClick={handlePrint} className="gap-2">
                  <Printer className="w-4 h-4" /> Print PDF
               </Button>
@@ -388,18 +402,19 @@ export default function EstimateDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Main Content Column */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 printable">
           
           {/* Quick Scoping Wizard */}
-          <QuickScoping onAddItem={addItem} clientNotes={client?.permanent_notes} />
-          
-          <ScopingAlerts items={formData.items} />
+          <div className="no-print">
+            <QuickScoping onAddItem={addItem} clientNotes={client?.permanent_notes} />
+            <ScopingAlerts items={formData.items} />
+          </div>
 
           {/* Line Items Table & Financial Summary */}
           <Card className="border-slate-200 shadow-sm overflow-hidden">
             <CardHeader className="bg-slate-50 border-b border-slate-100 flex flex-row items-center justify-between py-4">
               <CardTitle className="text-lg font-bold text-slate-800">Line Items</CardTitle>
-              <Button size="sm" variant="outline" onClick={() => addItem()} className="bg-white hover:bg-slate-50 gap-2 border-slate-200">
+              <Button size="sm" variant="outline" onClick={() => addItem()} className="no-print bg-white hover:bg-slate-50 gap-2 border-slate-200">
                 <Plus className="w-4 h-4" /> Add Manual Item
               </Button>
             </CardHeader>
@@ -510,7 +525,7 @@ export default function EstimateDetail() {
                         <TableCell className="text-right font-medium pr-6 text-slate-700">
                           ${(parseFloat(item.total) || 0).toFixed(2)}
                         </TableCell>
-                        <TableCell className="text-right pr-4">
+                        <TableCell className="text-right pr-4 no-print">
                           <Button variant="ghost" size="icon" onClick={() => removeItem(index)} className="h-8 w-8 text-slate-400 hover:text-red-500 hover:bg-red-50">
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -547,23 +562,24 @@ export default function EstimateDetail() {
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ImageIcon className="w-5 h-5 text-slate-500" />
-                Job Photos
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PhotoUpload 
-                photos={formData.photos} 
-                onChange={(photos) => setFormData({...formData, photos})} 
-              />
-            </CardContent>
-          </Card>
+          <div className="no-print">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5 text-slate-500" />
+                  Job Photos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <PhotoUpload 
+                  photos={formData.photos} 
+                  onChange={(photos) => setFormData({...formData, photos})} 
+                />
+              </CardContent>
+            </Card>
 
-          {client && (
-             <Card className="bg-amber-50 border-amber-200">
+            {client && (
+               <Card className="bg-amber-50 border-amber-200 mt-6">
                <CardHeader className="pb-2">
                  <CardTitle className="text-amber-900 text-lg flex items-center gap-2">
                     <StickyNote className="w-5 h-5" />
@@ -592,7 +608,7 @@ export default function EstimateDetail() {
         </div>
 
         {/* Sidebar Column */}
-        <div className="space-y-6">
+        <div className="space-y-6 no-print">
           <Card className="sticky top-6">
             <CardHeader>
               <CardTitle>Estimate Settings</CardTitle>
