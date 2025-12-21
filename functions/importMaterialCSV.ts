@@ -130,8 +130,9 @@ export default Deno.serve(async (req) => {
                         inventory_id: existingItem.id,
                         quantity_change: deltaQty,
                         transaction_type: 'restock',
+                        reference_id: 'csv_import',
                         date: new Date().toISOString(),
-                        reference_note: 'Bulk Import Upsert'
+                        reference_note: 'Source: csv_import - Bulk Import Upsert'
                     });
 
                     results.inventoryUpdated++;
@@ -152,8 +153,9 @@ export default Deno.serve(async (req) => {
                         inventory_id: newRecord.id,
                         quantity_change: deltaQty,
                         transaction_type: 'restock',
+                        reference_id: 'csv_import',
                         date: new Date().toISOString(),
-                        reference_note: 'Bulk Import Creation'
+                        reference_note: 'Source: csv_import - Bulk Import Creation'
                     });
 
                     results.inventoryCreated++;
