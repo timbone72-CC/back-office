@@ -35,6 +35,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { CheckSquare } from 'lucide-react';
 
 import JobTasks from '@/components/jobs/JobTasks';
 import JobTimeTracker from '@/components/jobs/JobTimeTracker';
@@ -56,6 +57,10 @@ export default function JobDetail() {
   const [isAddMaterialOpen, setIsAddMaterialOpen] = useState(false);
   const [newItem, setNewItem] = useState({ description: '', quantity: 1, unit_cost: 0, supplier_name: '' });
   
+  // Reconciliation State
+  const [isReconcileOpen, setIsReconcileOpen] = useState(false);
+  const [reconciliationItems, setReconciliationItems] = useState([]);
+
   // Review Request State
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [reviewContent, setReviewContent] = useState(null);
@@ -93,6 +98,44 @@ export default function JobDetail() {
       toast.success("Job updated");
     }
   });
+
+  const completeJobMutation = useMutation({
+    mutationFn: async (reconciliationData) => {
+        const res = await base44.functions.invoke('reconcileJobCompletion', {
+            job_id: jobId,
+            reconciliation_data: reconciliationData
+        });
+        return res.data;
+    },
+    onSuccess: (data) => {
+        queryClient.invalidateQueries(['job', jobId]);
+        queryClient.invalidateQueries(['inventory']); // Update inventory counts
+        setIsReconcileOpen(false);
+        toast.success(data.message || "Job completed successfully");
+    },
+    onError: (e) => {
+        console.error(e);
+        toast.error("Failed to complete job: " + (e.response?.data?.error || e.message));
+    }
+  });
+
+  const handleCompleteClick = () => {
+      // Initialize with current material list
+      const items = (job.material_list || []).map(item => ({
+          description: item.description,
+          inventory_id: item.inventory_id, // Ensure inventory_id is preserved if it exists
+          original_quantity: Number(item.quantity) || 0,
+          used_quantity: Number(item.quantity) || 0 // Default to full usage
+      }));
+      setReconciliationItems(items);
+      setIsReconcileOpen(true);
+  };
+
+  const handleReconcileChange = (index, val) => {
+      const newItems = [...reconciliationItems];
+      newItems[index].used_quantity = Number(val) || 0;
+      setReconciliationItems(newItems);
+  };
 
   const handleTaskUpdate = (newTasks) => {
     updateJobMutation.mutate({ tasks: newTasks });
@@ -331,6 +374,75 @@ export default function JobDetail() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Job Overview</CardTitle>
+
+              {job.status === 'in_progress' && (
+                  <Dialog open={isReconcileOpen} onOpenChange={setIsReconcileOpen}>
+                      <DialogTrigger asChild>
+                          <Button 
+                              onClick={handleCompleteClick}
+                              className="bg-green-600 hover:bg-green-700 text-white gap-2"
+                          >
+                              <CheckSquare className="w-4 h-4" />
+                              Complete Job
+                          </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-xl">
+                          <DialogHeader>
+                              <DialogTitle>Job Completion & Reconciliation</DialogTitle>
+                          </DialogHeader>
+                          <div className="py-4 space-y-4">
+                              <p className="text-sm text-slate-500">
+                                  Review the materials used for this job. Any unused items will be returned to inventory automatically.
+                              </p>
+                              <div className="border rounded-lg overflow-hidden">
+                                  <div className="bg-slate-50 p-3 grid grid-cols-12 text-xs font-semibold text-slate-500 uppercase">
+                                      <div className="col-span-6">Item</div>
+                                      <div className="col-span-3 text-center">Original</div>
+                                      <div className="col-span-3 text-center">Used</div>
+                                  </div>
+                                  <div className="max-h-[300px] overflow-y-auto">
+                                      {reconciliationItems.length === 0 ? (
+                                          <div className="p-4 text-center text-slate-400 italic">No materials to reconcile.</div>
+                                      ) : (
+                                          reconciliationItems.map((item, idx) => (
+                                              <div key={idx} className="p-3 border-t border-slate-100 grid grid-cols-12 items-center gap-2">
+                                                  <div className="col-span-6 text-sm font-medium text-slate-700 truncate" title={item.description}>
+                                                      {item.description}
+                                                      {item.inventory_id && <span className="ml-2 text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">INV</span>}
+                                                  </div>
+                                                  <div className="col-span-3 text-center text-sm text-slate-600">
+                                                      {item.original_quantity}
+                                                  </div>
+                                                  <div className="col-span-3">
+                                                      <Input 
+                                                          type="number" 
+                                                          min="0"
+                                                          max={item.original_quantity}
+                                                          className="h-8 text-center"
+                                                          value={item.used_quantity}
+                                                          onChange={(e) => handleReconcileChange(idx, e.target.value)}
+                                                      />
+                                                  </div>
+                                              </div>
+                                          ))
+                                      )}
+                                  </div>
+                              </div>
+                          </div>
+                          <DialogFooter>
+                              <Button variant="outline" onClick={() => setIsReconcileOpen(false)}>Cancel</Button>
+                              <Button 
+                                  onClick={() => completeJobMutation.mutate(reconciliationItems)} 
+                                  disabled={completeJobMutation.isPending}
+                                  className="bg-green-600 hover:bg-green-700"
+                              >
+                                  {completeJobMutation.isPending ? 'Closing Job...' : 'Confirm Completion'}
+                              </Button>
+                          </DialogFooter>
+                      </DialogContent>
+                  </Dialog>
+              )}
+
               {job.status === 'completed' && (
                 <Dialog open={isReviewOpen} onOpenChange={setIsReviewOpen}>
                   <DialogTrigger asChild>
@@ -370,7 +482,7 @@ export default function JobDetail() {
                             {reviewContent.sms_text}
                           </div>
                         </div>
-                        
+
                         <div className="space-y-2">
                           <Label className="flex justify-between">
                             <span>Email Draft</span>
