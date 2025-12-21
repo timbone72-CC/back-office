@@ -15,6 +15,7 @@ export default function JobKits() {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [importCsv, setImportCsv] = useState('');
   const [isImporting, setIsImporting] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const [formData, setFormData] = useState({ name: '', description: '', items: [] });
   const [editingId, setEditingId] = useState(null);
@@ -124,9 +125,12 @@ export default function JobKits() {
       a.remove();
   };
 
-  const handleFileUpload = (e) => {
-      const file = e.target.files[0];
+  const processFile = (file) => {
       if (!file) return;
+      if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+          toast.error("Please upload a CSV file");
+          return;
+      }
 
       const reader = new FileReader();
       reader.onload = (event) => {
@@ -137,6 +141,33 @@ export default function JobKits() {
           toast.error("Failed to read file");
       };
       reader.readAsText(file);
+  };
+
+  const handleFileUpload = (e) => {
+      processFile(e.target.files[0]);
+  };
+
+  const handleDragOver = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsDragging(false);
+      
+      const files = e.dataTransfer.files;
+      if (files && files.length > 0) {
+          processFile(files[0]);
+      }
   };
 
   const handleImport = async () => {
@@ -213,13 +244,25 @@ export default function JobKits() {
                             />
 
                             <div className="relative">
-                                <Label className="text-sm text-slate-700 mb-2 block">Or Paste CSV Data</Label>
-                                <textarea 
-                                    className="w-full h-48 p-3 text-xs font-mono border rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none bg-white"
-                                    placeholder="KitName,Description,ItemName,Quantity&#10;Basic Bath,Rough-in kit,2x4 Stud,10"
-                                    value={importCsv}
-                                    onChange={(e) => setImportCsv(e.target.value)}
-                                />
+                                <Label className="text-sm text-slate-700 mb-2 block">Or Paste / Drop CSV Data</Label>
+                                <div
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                    className={`relative transition-all duration-200 rounded-md ${isDragging ? 'ring-2 ring-indigo-500 bg-indigo-50' : ''}`}
+                                >
+                                    {isDragging && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-indigo-50/90 rounded-md border-2 border-dashed border-indigo-400 z-10 pointer-events-none">
+                                            <p className="text-indigo-600 font-medium">Drop CSV file here</p>
+                                        </div>
+                                    )}
+                                    <textarea 
+                                        className={`w-full h-48 p-3 text-xs font-mono border rounded-md focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none bg-white ${isDragging ? 'border-indigo-400' : ''}`}
+                                        placeholder="KitName,Description,ItemName,Quantity&#10;Basic Bath,Rough-in kit,2x4 Stud,10"
+                                        value={importCsv}
+                                        onChange={(e) => setImportCsv(e.target.value)}
+                                    />
+                                </div>
                                 <div className="text-[10px] text-slate-400 mt-1 text-right">
                                     Headers: KitName, Description, ItemName, Quantity
                                 </div>
