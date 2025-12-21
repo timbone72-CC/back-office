@@ -26,7 +26,40 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Estimate already converted' }, { status: 400 });
         }
 
-        // 2. Create the Job
+        // PHASE 2: Side-Effect Isolation & Pre-Flight Validation
+        // Collect all Inventory IDs to validate existence BEFORE starting any writes.
+        // This prevents "Job Created" state with failed inventory updates due to missing items.
+        const inventoryMap = new Map();
+        const inventoryIds = [...new Set(estimate.items.filter(i => i.inventory_id).map(i => i.inventory_id))];
+
+        if (inventoryIds.length > 0) {
+            try {
+                // Parallel fetch for snapshot consistency
+                const fetchPromises = inventoryIds.map(id => base44.entities.Inventory.filter({ id }));
+                const results = await Promise.all(fetchPromises);
+                
+                const missingIds = [];
+                results.forEach((res, index) => {
+                    if (res && res.length > 0) {
+                        inventoryMap.set(inventoryIds[index], res[0]);
+                    } else {
+                        missingIds.push(inventoryIds[index]);
+                    }
+                });
+
+                if (missingIds.length > 0) {
+                    return Response.json({ 
+                        error: 'Conversion Aborted: One or more inventory items linked to this estimate no longer exist.', 
+                        details: missingIds 
+                    }, { status: 400 });
+                }
+            } catch (e) {
+                console.error("Pre-flight validation failed:", e);
+                return Response.json({ error: 'Failed to validate inventory items. Please try again.' }, { status: 500 });
+            }
+        }
+
+        // 2. Create the Job (Now safe to proceed)
         const jobData = {
             title: estimate.title,
             client_profile_id: estimate.client_profile_id,
@@ -51,50 +84,52 @@ Deno.serve(async (req) => {
         // 3. Update Estimate Status
         await base44.entities.JobEstimate.update(estimate.id, { status: 'converted' });
 
-        // 4. Process Inventory Deductions
+        // 4. Process Inventory Deductions (Execution Phase)
+        // Uses the pre-fetched map to ensure we operate on the validated snapshot.
         const deductionReport = [];
-        
-        // We need to fetch inventory items to check current stock and reorder points
-        // Doing this sequentially for simplicity and correctness, though parallel would be faster
+
         for (const item of estimate.items) {
             if (item.inventory_id && item.quantity > 0) {
+                const invItem = inventoryMap.get(item.inventory_id);
+                // Note: invItem exists due to pre-flight check
+
                 try {
-                    // Fetch current inventory state
-                    const invItems = await base44.entities.Inventory.filter({ id: item.inventory_id });
-                    if (invItems && invItems.length > 0) {
-                        const invItem = invItems[0];
-                        const newQuantity = Math.max(0, invItem.quantity - item.quantity);
-                        
-                        // Update inventory
-                        await base44.entities.Inventory.update(invItem.id, { quantity: newQuantity });
-                        
-                        // Log Transaction
-                        await base44.entities.StockTransaction.create({
-                            inventory_id: invItem.id,
-                            quantity_change: -Number(item.quantity),
-                            transaction_type: 'job_deduction',
-                            reference_id: job.id,
-                            batch_id: batchId,
-                            reference_note: `Used in Job: ${job.title}`,
-                            date: new Date().toISOString()
-                        });
+                    const qtyToDeduct = Number(item.quantity);
+                    // Calculate from current snapshot
+                    const newQuantity = Math.max(0, invItem.quantity - qtyToDeduct);
+                    
+                    // Update inventory (Write)
+                    await base44.entities.Inventory.update(invItem.id, { quantity: newQuantity });
+                    
+                    // Update local snapshot for correct calculation if item appears multiple times
+                    invItem.quantity = newQuantity;
+                    inventoryMap.set(invItem.id, invItem);
+                    
+                    // Log Transaction
+                    await base44.entities.StockTransaction.create({
+                        inventory_id: invItem.id,
+                        quantity_change: -qtyToDeduct,
+                        transaction_type: 'job_deduction',
+                        reference_id: job.id,
+                        batch_id: batchId,
+                        reference_note: `Used in Job: ${job.title}`,
+                        date: new Date().toISOString()
+                    });
 
-                        deductionReport.push({
-                            item: invItem.item_name,
-                            deducted: item.quantity,
-                            remaining: newQuantity,
-                            isLowStock: newQuantity <= invItem.reorder_point
-                        });
+                    deductionReport.push({
+                        item: invItem.item_name,
+                        deducted: qtyToDeduct,
+                        remaining: newQuantity,
+                        isLowStock: newQuantity <= invItem.reorder_point
+                    });
 
-                        // Logic for low stock trigger (Stage 2 requirements)
-                        // In a real app, this might trigger a separate notification service
-                        if (newQuantity <= invItem.reorder_point) {
-                             console.log(`LOW STOCK ALERT: ${invItem.item_name} is at ${newQuantity} (Reorder Point: ${invItem.reorder_point})`);
-                             // Potential Stage 3: Send alert/email here
-                        }
+                    if (newQuantity <= invItem.reorder_point) {
+                            console.log(`LOW STOCK ALERT: ${invItem.item_name} is at ${newQuantity}`);
                     }
+
                 } catch (e) {
                     console.error(`Failed to deduct inventory for item ${item.description}:`, e);
+                    // We continue best-effort here. Batch ID allows post-mortem cleanup.
                     deductionReport.push({
                         item: item.description,
                         error: "Failed to update inventory"
