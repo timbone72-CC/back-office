@@ -21,6 +21,8 @@ export default Deno.serve(async (req) => {
             inventoryUpdated: 0
         };
 
+        const batchId = crypto.randomUUID();
+
         for (const row of dataRows) {
             const rowData = {};
             headers.forEach((header, index) => {
@@ -131,6 +133,7 @@ export default Deno.serve(async (req) => {
                         quantity_change: deltaQty,
                         transaction_type: 'restock',
                         reference_id: 'csv_import',
+                        batch_id: batchId,
                         date: new Date().toISOString(),
                         reference_note: 'Source: csv_import - Bulk Import Upsert'
                     });
@@ -154,6 +157,7 @@ export default Deno.serve(async (req) => {
                         quantity_change: deltaQty,
                         transaction_type: 'restock',
                         reference_id: 'csv_import',
+                        batch_id: batchId,
                         date: new Date().toISOString(),
                         reference_note: 'Source: csv_import - Bulk Import Creation'
                     });
