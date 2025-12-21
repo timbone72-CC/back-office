@@ -606,6 +606,7 @@ export default function EstimateDetail() {
              </Card>
           )}
         </div>
+        </div>
 
         {/* Sidebar Column */}
         <div className="space-y-6 no-print">
