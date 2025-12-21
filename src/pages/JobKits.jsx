@@ -201,18 +201,28 @@ export default function JobKits() {
                   <CardTitle className="text-lg">{kit.name}</CardTitle>
                 </div>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="text-slate-400 hover:text-red-500"
-                onClick={() => {
-                  if(confirm('Are you sure you want to delete this kit?')) {
-                    deleteKitMutation.mutate(kit.id);
-                  }
-                }}
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
+              <div className="flex gap-1">
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-slate-400 hover:text-indigo-600"
+                    onClick={() => handleEditOpen(kit)}
+                >
+                    <Pencil className="w-4 h-4" />
+                </Button>
+                <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="text-slate-400 hover:text-red-500"
+                    onClick={() => {
+                    if(confirm('Are you sure you want to delete this kit?')) {
+                        deleteKitMutation.mutate(kit.id);
+                    }
+                    }}
+                >
+                    <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-slate-500 mb-4">{kit.description || 'No description'}</p>
