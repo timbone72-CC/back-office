@@ -72,6 +72,22 @@ export default function JobKits() {
 
   const getInventoryName = (id) => inventory?.find(i => i.id === id)?.item_name || 'Unknown Item';
 
+  const handleCreateOpen = () => {
+    setNewKit({ name: '', description: '', items: [] });
+    setEditingKitId(null);
+    setIsDialogOpen(true);
+  };
+
+  const handleEditOpen = (kit) => {
+    setNewKit({
+        name: kit.name,
+        description: kit.description || '',
+        items: kit.items ? kit.items.map(i => ({...i})) : []
+    });
+    setEditingKitId(kit.id);
+    setIsDialogOpen(true);
+  };
+
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center">
