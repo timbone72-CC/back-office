@@ -92,7 +92,8 @@ export default Deno.serve(async (req) => {
 
             // 4. Handle Inventory Upsert
             if (itemName) {
-                const quantity = parseFloat(rowData['quantity']) || 0;
+                // Support both 'quantity' and 'qty' headers
+                const quantity = parseFloat(rowData['quantity'] || rowData['qty']) || 0;
                 const existingInventory = await base44.entities.Inventory.filter({ item_name: itemName });
 
                 if (existingInventory.length > 0) {

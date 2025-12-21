@@ -39,10 +39,10 @@ export default function DataImport() {
     }
   };
 
-  const sampleCSV = `ItemName,SupplierName,MinPrice,MaxPrice,Unit
-2x4x8 Stud,Local Lumber Co,3.50,4.25,each
-Drywall 4x8,Big Box Store,12.00,14.50,sheet
-Paint 1G,Paint Pros,45.00,55.00,gallon`;
+  const sampleCSV = `ItemName,SupplierName,MinPrice,MaxPrice,Unit,Quantity
+2x4x8 Stud,Local Lumber Co,3.50,4.25,each,50
+Drywall 4x8,Big Box Store,12.00,14.50,sheet,100
+Paint 1G,Paint Pros,45.00,55.00,gallon,20`;
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-12">
@@ -72,29 +72,19 @@ Paint 1G,Paint Pros,45.00,55.00,gallon`;
                 value={csvContent}
                 onChange={(e) => setCsvContent(e.target.value)}
               />
-              <div className="flex gap-2">
-                <Button
-                  variant="secondary"
-                  onClick={() => setCsvContent('')}
-                  disabled={isImporting}
-                  className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200"
-                >
-                  Clear / Reset
-                </Button>
-                <Button 
-                  onClick={handleImport} 
-                  disabled={isImporting} 
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-700"
-                >
-                  {isImporting ? (
-                    <>Importing...</>
-                  ) : (
-                    <>
-                      <Upload className="w-4 h-4 mr-2" /> Import Data
-                    </>
-                  )}
-                </Button>
-              </div>
+              <Button 
+                onClick={handleImport} 
+                disabled={isImporting} 
+                className="w-full bg-indigo-600 hover:bg-indigo-700"
+              >
+                {isImporting ? (
+                  <>Importing...</>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" /> Import Data
+                  </>
+                )}
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -109,7 +99,7 @@ Paint 1G,Paint Pros,45.00,55.00,gallon`;
                 Ensure your CSV has the following headers (case-insensitive):
               </p>
               <div className="bg-slate-900 text-slate-50 p-3 rounded-md font-mono text-xs overflow-x-auto">
-                ItemName, SupplierName, MinPrice, MaxPrice, Unit
+                ItemName, SupplierName, MinPrice, MaxPrice, Unit, Quantity
               </div>
               
               <div className="space-y-2">
@@ -147,6 +137,14 @@ Paint 1G,Paint Pros,45.00,55.00,gallon`;
                     <div className="flex justify-between">
                       <span>Prices Updated:</span>
                       <span className="font-bold">{result.data.pricesCreated}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-green-200 pt-1 mt-1">
+                      <span>Inventory Created:</span>
+                      <span className="font-bold">{result.data.inventoryCreated}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Inventory Updated (Upsert):</span>
+                      <span className="font-bold">{result.data.inventoryUpdated}</span>
                     </div>
                   </AlertDescription>
                 </Alert>
