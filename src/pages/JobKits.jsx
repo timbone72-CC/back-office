@@ -96,14 +96,12 @@ export default function JobKits() {
           <p className="text-slate-500 mt-1">Manage bundled material kits for quick scoping</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-indigo-600 hover:bg-indigo-700">
+          <Button onClick={handleCreateOpen} className="bg-indigo-600 hover:bg-indigo-700">
               <Plus className="w-4 h-4 mr-2" /> Create Kit
-            </Button>
-          </DialogTrigger>
+          </Button>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Create New Job Kit</DialogTitle>
+              <DialogTitle>{editingKitId ? 'Edit Job Kit' : 'Create New Job Kit'}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
