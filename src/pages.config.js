@@ -12,6 +12,7 @@ import JobDetail from './pages/JobDetail';
 import Inventory from './pages/Inventory';
 import Portfolio from './pages/Portfolio';
 import JobKits from './pages/JobKits';
+import SystemLogs from './pages/SystemLogs';
 import __Layout from './Layout.jsx';
 
 
@@ -30,6 +31,7 @@ export const PAGES = {
     "Inventory": Inventory,
     "Portfolio": Portfolio,
     "JobKits": JobKits,
+    "SystemLogs": SystemLogs,
 }
 
 export const pagesConfig = {

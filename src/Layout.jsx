@@ -14,6 +14,7 @@ Calculator,
 ShoppingBag,
 Database,
 Package,
+Activity,
 Image as ImageIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -31,7 +32,8 @@ export default function Layout({ children }) {
     { name: 'Inventory', icon: Package, path: '/inventory' },
     { name: 'Job Kits', icon: Package, path: '/job-kits' },
     { name: 'Calculators', icon: Calculator, path: '/calculators' },
-  ];
+    { name: 'System Logs', icon: Activity, path: '/system-logs' },
+    ];
 
   const isActive = (path) => {
     if (path === '/' && location.pathname !== '/') return false;
@@ -80,8 +82,9 @@ export default function Layout({ children }) {
                 item.path.slice(1) === 'inventory' ? 'Inventory' :
                 item.path.slice(1) === 'portfolio' ? 'Portfolio' :
                 item.path.slice(1) === 'import' ? 'DataImport' :
+                item.path.slice(1) === 'system-logs' ? 'SystemLogs' :
                 'ScheduleLeads'
-              )}>
+                )}>
                 <div 
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 group ${
                     active 

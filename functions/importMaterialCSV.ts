@@ -184,6 +184,20 @@ export default Deno.serve(async (req) => {
         return Response.json({ success: true, results });
 
     } catch (error) {
+        // Log to System Audit Log
+        try {
+            const user = await base44.auth.me();
+            await base44.entities.SystemLog.create({
+                severity: 'error',
+                source: 'importMaterialCSV',
+                message: 'CSV Import Failed',
+                details: JSON.stringify({ error: error.message }),
+                user_email: user?.email || 'unknown'
+            });
+        } catch (logError) {
+            console.error("Failed to write system log:", logError);
+        }
+
         return Response.json({ error: error.message }, { status: 500 });
     }
-});
+    });

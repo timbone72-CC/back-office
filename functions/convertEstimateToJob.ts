@@ -146,6 +146,21 @@ Deno.serve(async (req) => {
 
     } catch (error) {
         console.error("Conversion error:", error);
+
+        // Log to System Audit Log
+        try {
+            await base44.entities.SystemLog.create({
+                severity: 'error',
+                source: 'convertEstimateToJob',
+                message: 'Failed to convert estimate to job',
+                details: JSON.stringify({ error: error.message, stack: error.stack, estimate_id }),
+                user_email: user?.email || 'unknown',
+                batch_id: batchId
+            });
+        } catch (logError) {
+            console.error("Failed to write system log:", logError);
+        }
+
         return Response.json({ error: error.message }, { status: 500 });
     }
-});
+    });
