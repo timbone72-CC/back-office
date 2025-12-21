@@ -75,10 +75,25 @@ export default function EstimateDetail() {
   useEffect(() => {
     if (estimateId && estimate) {
       // Edit Mode
+      const items = estimate.items || [];
+      const tax_rate = estimate.tax_rate || 0;
+
+      // Strict recalculation on load to fix any bad data
+      const subtotal = items.reduce((sum, item) => {
+          const qty = Number(item.quantity) || 0;
+          const cost = Number(item.unit_cost) || 0;
+          item.total = qty * cost; 
+          return sum + item.total;
+      }, 0);
+
+      const total_amount = subtotal + (subtotal * (Number(tax_rate) / 100));
+
       setFormData({
         ...estimate,
-        items: estimate.items || [],
-        tax_rate: estimate.tax_rate || 0,
+        items,
+        subtotal,
+        tax_rate,
+        total_amount,
         photos: estimate.photos || []
       });
     } else if (!estimateId) {
