@@ -90,35 +90,72 @@ export default Deno.serve(async (req) => {
                 }
             }
 
-            // 4. Handle Inventory Upsert
+            // 4. Handle Inventory Upsert with Fuzzy Match & Audit Trail
             if (itemName) {
-                // Support both 'quantity' and 'qty' headers
-                const quantity = parseFloat(rowData['quantity'] || rowData['qty']) || 0;
-                const existingInventory = await base44.entities.Inventory.filter({ item_name: itemName });
+                // Strict Number Parsing
+                const rawQty = rowData['quantity'] || rowData['qty'];
+                const deltaQty = Number(rawQty);
+                
+                if (isNaN(deltaQty)) {
+                    throw new Error(`Invalid quantity for item '${itemName}': ${rawQty}`);
+                }
 
-                if (existingInventory.length > 0) {
-                    // Upsert: Add to existing quantity
-                    const item = existingInventory[0];
-                    const currentQty = parseFloat(item.quantity) || 0;
-                    const newQty = currentQty + quantity;
+                // Fuzzy Match Normalization
+                const normalizedName = itemName.toLowerCase().trim();
+                
+                // Fetch all inventory to do fuzzy match in memory (most reliable without unique index support)
+                // In production with huge datasets, we'd rely on the normalized_name field filter
+                const allInventory = await base44.entities.Inventory.list();
+                const existingItem = allInventory.find(i => 
+                    (i.normalized_name === normalizedName) || 
+                    (i.item_name.toLowerCase().trim() === normalizedName)
+                );
+
+                if (existingItem) {
+                    // UPDATE existing
+                    const currentQty = Number(existingItem.quantity) || 0;
+                    const newQty = currentQty + deltaQty;
                     
-                    await base44.entities.Inventory.update(item.id, { 
+                    if (isNaN(newQty)) throw new Error(`Math error calculating new quantity for '${itemName}'`);
+
+                    await base44.entities.Inventory.update(existingItem.id, { 
                         quantity: newQty,
-                        // Optionally update other fields if provided in CSV
-                        supplier_id: supplierId || item.supplier_id,
-                        material_library_id: materialId || item.material_library_id
+                        normalized_name: normalizedName, // Ensure this is set
+                        supplier_id: supplierId || existingItem.supplier_id,
+                        material_library_id: materialId || existingItem.material_library_id
                     });
+
+                    // Audit Trail
+                    await base44.entities.StockTransaction.create({
+                        inventory_id: existingItem.id,
+                        quantity_change: deltaQty,
+                        transaction_type: 'restock',
+                        date: new Date().toISOString(),
+                        reference_note: 'Bulk Import Upsert'
+                    });
+
                     results.inventoryUpdated++;
                 } else {
-                    // Create new inventory record
-                    await base44.entities.Inventory.create({
-                        item_name: itemName,
-                        quantity: quantity,
+                    // CREATE new
+                    const newRecord = await base44.entities.Inventory.create({
+                        item_name: itemName.trim(), // Keep original casing for display
+                        normalized_name: normalizedName,
+                        quantity: deltaQty,
                         unit: unit || 'each',
                         supplier_id: supplierId || '',
-                        reorder_point: 5, // Default
+                        reorder_point: 5,
                         material_library_id: materialId
                     });
+
+                    // Audit Trail
+                    await base44.entities.StockTransaction.create({
+                        inventory_id: newRecord.id,
+                        quantity_change: deltaQty,
+                        transaction_type: 'restock',
+                        date: new Date().toISOString(),
+                        reference_note: 'Bulk Import Creation'
+                    });
+
                     results.inventoryCreated++;
                 }
             }

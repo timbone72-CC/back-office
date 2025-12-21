@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -11,11 +12,29 @@ export default function DataImport() {
   const [csvContent, setCsvContent] = useState('');
   const [isImporting, setIsImporting] = useState(false);
   const [result, setResult] = useState(null);
+  const queryClient = useQueryClient();
 
   const handleImport = async () => {
     if (!csvContent.trim()) {
       toast.error("Please paste CSV data first");
       return;
+    }
+
+    // Client-side Validation
+    const lines = csvContent.split('\n');
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+    const qtyIndex = headers.findIndex(h => h === 'quantity' || h === 'qty');
+    
+    if (qtyIndex !== -1) {
+        for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+            const cols = lines[i].split(',').map(c => c.trim());
+            const qty = Number(cols[qtyIndex]);
+            if (isNaN(qty)) {
+                toast.error(`Invalid quantity on row ${i + 1}: "${cols[qtyIndex]}" is not a number`);
+                return;
+            }
+        }
     }
 
     setIsImporting(true);
@@ -27,6 +46,9 @@ export default function DataImport() {
       if (response.data.success) {
         setResult({ type: 'success', data: response.data.results });
         toast.success("Import completed successfully!");
+        // Refresh UI
+        queryClient.invalidateQueries(['inventory-list']);
+        queryClient.invalidateQueries(['inventory']);
       } else {
         throw new Error(response.data.error || 'Import failed');
       }
