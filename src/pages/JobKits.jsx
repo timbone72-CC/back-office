@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Package, Trash2, Save, X } from 'lucide-react';
+import { Plus, Package, Trash2, Save, X, Pencil } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,7 +12,8 @@ import { toast } from 'sonner';
 
 export default function JobKits() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [newKit, setNewKit] = useState({ name: '', description: '', items: [] });
+  const [formData, setFormData] = useState({ name: '', description: '', items: [] });
+  const [editingId, setEditingId] = useState(null);
   const queryClient = useQueryClient();
 
   const { data: inventory } = useQuery({
@@ -30,8 +31,19 @@ export default function JobKits() {
     onSuccess: () => {
       queryClient.invalidateQueries(['job-kits']);
       setIsDialogOpen(false);
-      setNewKit({ name: '', description: '', items: [] });
+      setFormData({ name: '', description: '', items: [] });
       toast.success('Job Kit created successfully');
+    },
+  });
+
+  const updateKitMutation = useMutation({
+    mutationFn: (data) => base44.entities.JobKit.update(editingId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['job-kits']);
+      setIsDialogOpen(false);
+      setFormData({ name: '', description: '', items: [] });
+      setEditingId(null);
+      toast.success('Job Kit updated successfully');
     },
   });
 
@@ -43,19 +55,36 @@ export default function JobKits() {
     },
   });
 
+  const handleCreateOpen = () => {
+    setEditingId(null);
+    setFormData({ name: '', description: '', items: [] });
+    setIsDialogOpen(true);
+  };
+
+  const handleEditOpen = (kit) => {
+    setEditingId(kit.id);
+    // Deep copy items to avoid reference issues
+    setFormData({
+        name: kit.name,
+        description: kit.description,
+        items: kit.items ? JSON.parse(JSON.stringify(kit.items)) : []
+    });
+    setIsDialogOpen(true);
+  };
+
   const addKitItem = () => {
-    setNewKit({ ...newKit, items: [...newKit.items, { inventory_id: '', quantity: 1 }] });
+    setFormData({ ...formData, items: [...formData.items, { inventory_id: '', quantity: 1 }] });
   };
 
   const updateKitItem = (index, field, value) => {
-    const updatedItems = [...newKit.items];
+    const updatedItems = [...formData.items];
     updatedItems[index][field] = value;
-    setNewKit({ ...newKit, items: updatedItems });
+    setFormData({ ...formData, items: updatedItems });
   };
 
   const removeKitItem = (index) => {
-    const updatedItems = newKit.items.filter((_, i) => i !== index);
-    setNewKit({ ...newKit, items: updatedItems });
+    const updatedItems = formData.items.filter((_, i) => i !== index);
+    setFormData({ ...formData, items: updatedItems });
   };
 
   const getInventoryName = (id) => inventory?.find(i => i.id === id)?.item_name || 'Unknown Item';
@@ -69,28 +98,28 @@ export default function JobKits() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="bg-indigo-600 hover:bg-indigo-700">
+            <Button className="bg-indigo-600 hover:bg-indigo-700" onClick={handleCreateOpen}>
               <Plus className="w-4 h-4 mr-2" /> Create Kit
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Create New Job Kit</DialogTitle>
+              <DialogTitle>{editingId ? 'Edit Job Kit' : 'Create New Job Kit'}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Kit Name</Label>
                 <Input 
-                  value={newKit.name}
-                  onChange={(e) => setNewKit({...newKit, name: e.target.value})}
+                  value={formData.name}
+                  onChange={(e) => setFormData({...formData, name: e.target.value})}
                   placeholder="e.g., Bathroom Rough-in"
                 />
               </div>
               <div className="space-y-2">
                 <Label>Description</Label>
                 <Input 
-                  value={newKit.description}
-                  onChange={(e) => setNewKit({...newKit, description: e.target.value})}
+                  value={formData.description}
+                  onChange={(e) => setFormData({...formData, description: e.target.value})}
                   placeholder="Brief description of the kit contents"
                 />
               </div>
@@ -103,10 +132,10 @@ export default function JobKits() {
                   </Button>
                 </div>
                 <div className="border rounded-lg p-2 space-y-2 max-h-60 overflow-y-auto bg-slate-50">
-                  {newKit.items.length === 0 ? (
+                  {formData.items.length === 0 ? (
                     <p className="text-sm text-slate-500 text-center py-4">No items added yet.</p>
                   ) : (
-                    newKit.items.map((item, idx) => (
+                    formData.items.map((item, idx) => (
                       <div key={idx} className="flex gap-2 items-end">
                         <div className="flex-1">
                           <Label className="text-xs">Item</Label>
@@ -149,8 +178,11 @@ export default function JobKits() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-              <Button onClick={() => createKitMutation.mutate(newKit)} disabled={!newKit.name || createKitMutation.isPending}>
-                {createKitMutation.isPending ? 'Saving...' : 'Create Kit'}
+              <Button 
+                onClick={() => editingId ? updateKitMutation.mutate(formData) : createKitMutation.mutate(formData)} 
+                disabled={!formData.name || createKitMutation.isPending || updateKitMutation.isPending}
+              >
+                {createKitMutation.isPending || updateKitMutation.isPending ? 'Saving...' : (editingId ? 'Save Changes' : 'Create Kit')}
               </Button>
             </DialogFooter>
           </DialogContent>
