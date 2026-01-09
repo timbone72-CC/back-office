@@ -1,0 +1,171 @@
+import React, { useState } from 'react';
+import { base44 } from '@/api/base44Client';
+import { useQuery } from '@tanstack/react-query';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Loader2, Plus, ShoppingCart, Star, Sparkles } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+
+export default function QuickScoping({ onAddItem, clientNotes }) {
+  const [jobType, setJobType] = useState('');
+  const [selectedSupplierId, setSelectedSupplierId] = useState('');
+
+  // 0. Analyze Client Preferences (AI)
+  const { data: preferences, isLoading: prefsLoading } = useQuery({
+    queryKey: ['client-preferences', clientNotes],
+    queryFn: async () => {
+      if (!clientNotes) return { keywords: [] };
+      try {
+        const res = await base44.functions.invoke('analyzeClientPreferences', { notes: clientNotes });
+        return res.data;
+      } catch (e) {
+        console.error("AI Analysis failed", e);
+        return { keywords: [] };
+      }
+    },
+    enabled: !!clientNotes,
+    staleTime: 1000 * 60 * 60, // 1 hour
+  });
+
+  // 1. Fetch Suppliers
+  const { data: suppliers } = useQuery({
+    queryKey: ['suppliers'],
+    queryFn: () => base44.entities.Supplier.list('store_name', 50),
+  });
+
+  // 2. Fetch Materials based on Job Type (Category)
+  const { data: materials, isLoading: materialsLoading } = useQuery({
+    queryKey: ['materials', jobType],
+    queryFn: () => base44.entities.MaterialLibrary.filter({ category: jobType }),
+    enabled: !!jobType,
+  });
+
+  // 3. Fetch Pricing for the selected supplier and materials
+  const { data: pricingData, isLoading: pricingLoading } = useQuery({
+    queryKey: ['material-pricing', selectedSupplierId, materials],
+    queryFn: async () => {
+      if (!selectedSupplierId || !materials || materials.length === 0) return [];
+      // Ideally we'd filter by material_ids too, but for now getting all pricing for supplier is easier given API limits
+      // or we iterate. Let's fetch all pricing for this supplier and filter in memory for this prototype.
+      return base44.entities.MaterialPricing.filter({ supplier_id: selectedSupplierId });
+    },
+    enabled: !!selectedSupplierId && !!materials && materials.length > 0,
+  });
+
+  const getPriceRange = (materialId) => {
+    if (!pricingData) return null;
+    const pricing = pricingData.find(p => p.material_id === materialId);
+    if (!pricing) return null;
+    return { min: pricing.min_price, max: pricing.max_price };
+  };
+
+  const handleAdd = (material, priceRange) => {
+    // Default to average price or min price if available
+    const unitCost = priceRange ? (priceRange.min + priceRange.max) / 2 : 0;
+    const supplier = suppliers?.find(s => s.id === selectedSupplierId);
+    
+    onAddItem({
+      description: material.item_name,
+      quantity: 1,
+      unit_cost: unitCost,
+      total: unitCost, // 1 * unitCost
+      supplier_id: selectedSupplierId,
+      supplier_name: supplier?.store_name || 'Unknown Supplier'
+    });
+  };
+
+  return (
+    <Card className="h-[300px] border-indigo-100 bg-indigo-50/50 flex flex-col overflow-hidden">
+      <CardHeader className="py-3 px-4 shrink-0">
+        <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-indigo-900 text-base">
+            <ShoppingCart className="w-4 h-4" />
+            Quick Scoping Wizard
+            </CardTitle>
+            {clientNotes && (
+                <div className="flex items-center gap-1 text-[10px] bg-indigo-100 text-indigo-700 px-2 py-1 rounded-full border border-indigo-200">
+                    {prefsLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                    {prefsLoading ? 'Analyzing...' : 'AI Context Active'}
+                </div>
+            )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2 px-4 pb-3 flex-1 overflow-hidden flex flex-col">
+        <div className="flex gap-3 shrink-0">
+          <div className="space-y-1 flex-1">
+            <label className="text-xs font-semibold text-slate-500 uppercase">Job Type</label>
+            <Select value={jobType} onValueChange={setJobType}>
+              <SelectTrigger className="bg-white h-8 text-xs">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Drywall">Drywall</SelectItem>
+                <SelectItem value="Framing">Framing</SelectItem>
+                <SelectItem value="Plumbing">Plumbing</SelectItem>
+                <SelectItem value="Electrical">Electrical</SelectItem>
+                <SelectItem value="Paint">Paint</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1 flex-1">
+            <label className="text-xs font-semibold text-slate-500 uppercase">Supplier</label>
+            <Select value={selectedSupplierId} onValueChange={setSelectedSupplierId}>
+              <SelectTrigger className="bg-white h-8 text-xs">
+                <SelectValue placeholder="Store" />
+              </SelectTrigger>
+              <SelectContent>
+                {suppliers?.map(s => (
+                  <SelectItem key={s.id} value={s.id}>{s.store_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto min-h-0 pt-2">
+           {!jobType || !selectedSupplierId ? (
+             <p className="text-sm text-slate-500 italic">Select job type and supplier to view materials.</p>
+           ) : materialsLoading || pricingLoading ? (
+             <div className="flex justify-center p-4"><Loader2 className="w-6 h-6 animate-spin text-indigo-600" /></div>
+           ) : materials?.length === 0 ? (
+             <p className="text-sm text-slate-500">No materials found for this category.</p>
+           ) : (
+             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pr-1">
+               {materials.map(material => {
+                 const price = getPriceRange(material.id);
+                 const isPreferred = preferences?.keywords?.some(k => material.item_name.toLowerCase().includes(k.toLowerCase()));
+                 return (
+                   <div key={material.id} className={`flex items-center justify-between p-2 rounded-lg border shadow-sm transition-all ${isPreferred ? 'bg-amber-50 border-amber-200 ring-1 ring-amber-200' : 'bg-white border-indigo-100'}`}>
+                     <div className="flex-1 min-w-0 mr-2">
+                       <div className="flex flex-wrap items-center gap-1">
+                            <div className="font-medium text-xs text-slate-900 truncate" title={material.item_name}>{material.item_name}</div>
+                            {isPreferred && (
+                                <Star className="w-3 h-3 fill-amber-500 text-amber-600 shrink-0" />
+                            )}
+                       </div>
+                       <div className="text-[10px] text-slate-500">{material.unit}</div>
+                     </div>
+                     <div className="flex items-center gap-1 shrink-0">
+                        {price ? (
+                          <div className="text-right">
+                            <div className="text-xs font-semibold text-slate-900">${price.min}-${price.max}</div>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-slate-400">--</span>
+                        )}
+                        <Button size="icon" variant="ghost" className="h-6 w-6 hover:bg-indigo-50 text-indigo-600" onClick={() => handleAdd(material, price)}>
+                          <Plus className="w-3 h-3" />
+                        </Button>
+                     </div>
+                   </div>
+                 )
+               })}
+             </div>
+           )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

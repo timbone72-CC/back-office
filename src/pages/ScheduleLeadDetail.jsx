@@ -1,0 +1,452 @@
+import React, { useState, useEffect } from 'react';
+import { base44 } from '@/api/base44Client';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  ArrowLeft, 
+  Save, 
+  Trash2,
+  Calendar,
+  Clock,
+  User,
+  FileText,
+  Sparkles,
+  Image as ImageIcon,
+  MessageSquare,
+  Navigation
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import PhotoUpload from '@/components/PhotoUpload';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
+import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from 'sonner';
+
+export default function ScheduleLeadDetail() {
+  const location = useLocation();
+  const urlParams = new URLSearchParams(location.search);
+  const recordId = urlParams.get('id');
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  console.log("ScheduleLeadDetail: ID from URL:", recordId);
+  console.log("Location Search:", location.search);
+
+  const { data: record, isLoading } = useQuery({
+    queryKey: ['schedule-lead', recordId],
+    queryFn: async () => {
+      if (!recordId) return null;
+      try {
+        const res = await base44.entities.ClientScheduleLead.filter({ id: recordId });
+        return res && res.length > 0 ? res[0] : null;
+      } catch (e) {
+        console.error("Error fetching record:", e);
+        return null;
+      }
+    },
+    enabled: !!recordId,
+    staleTime: 0,
+    refetchOnWindowFocus: true
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (data) => base44.entities.ClientScheduleLead.create(data),
+    onSuccess: (newRecord) => {
+      toast.success('Record created successfully');
+      // Navigate to the edit view of the new record to prevent duplicate creations
+      navigate(`${createPageUrl('ScheduleLeadDetail')}?id=${newRecord.id}`, { replace: true });
+    },
+    onError: () => toast.error('Failed to create record')
+  });
+
+  const { data: clients } = useQuery({
+    queryKey: ['clients-list'],
+    queryFn: () => base44.entities.ClientProfile.list('name', 100),
+  });
+
+  const { data: estimates } = useQuery({
+    queryKey: ['estimates-list'],
+    queryFn: () => base44.entities.JobEstimate.list('title', 100),
+  });
+
+  const [formData, setFormData] = useState(null);
+
+  useEffect(() => {
+    if (recordId && record) {
+      // Edit Mode
+      setFormData({ 
+        ...record, 
+        photos: record.photos || [],
+        service_description: record.service_description || '',
+        ai_summary: record.ai_summary || ''
+      });
+    } else if (!recordId) {
+      // New Record Mode
+      setFormData({
+        client_profile_id: '',
+        type: 'lead',
+        title: '',
+        date: '',
+        status: 'new',
+        notes: '',
+        service_description: '',
+        ai_summary: '',
+        photos: []
+      });
+    }
+  }, [record, recordId]);
+
+  const updateMutation = useMutation({
+    mutationFn: async (data) => {
+      // Auto-generate summary if description exists but summary is empty
+      let dataToSave = { ...data };
+      if (data.service_description && !data.ai_summary) {
+        try {
+          toast.info('Generating AI summary...');
+          const aiRes = await base44.integrations.Core.InvokeLLM({
+            prompt: `Summarize this service request into one concise sentence: "${data.service_description}"`,
+            response_json_schema: { type: "object", properties: { summary: { type: "string" } } }
+          });
+          if (aiRes.summary) {
+            dataToSave.ai_summary = aiRes.summary;
+            setFormData(prev => ({ ...prev, ai_summary: aiRes.summary }));
+          }
+        } catch (e) {
+          console.error("AI Summary failed", e);
+        }
+      }
+
+      // Sync notes to Client Profile's permanent notes
+      if (data.client_profile_id && data.notes) {
+         try {
+            const clientRes = await base44.entities.ClientProfile.filter({ id: data.client_profile_id });
+            if (clientRes && clientRes.length > 0) {
+               const client = clientRes[0];
+               // Check if this specific note content is already present to avoid duplicates on re-save
+               if (!client.permanent_notes?.includes(data.notes)) {
+                   const timestamp = new Date().toLocaleDateString();
+                   const noteEntry = `\n[${timestamp} - ${data.type === 'lead' ? 'Lead' : 'Schedule'}]: ${data.notes}`;
+                   await base44.entities.ClientProfile.update(client.id, {
+                      permanent_notes: (client.permanent_notes || '') + noteEntry
+                   });
+                   toast.success("Notes synced to Client Profile");
+               }
+            }
+         } catch (e) {
+            console.error("Failed to sync notes to client", e);
+         }
+      }
+
+      return base44.entities.ClientScheduleLead.update(recordId, dataToSave);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['schedule-lead', recordId]);
+      toast.success('Record saved successfully');
+    },
+    onError: () => {
+      toast.error('Failed to save record');
+    }
+  });
+
+  const generateSummaryMutation = useMutation({
+    mutationFn: async () => {
+      if (!formData.service_description) throw new Error("Service description is required");
+      const res = await base44.integrations.Core.InvokeLLM({
+        prompt: `Summarize this service request into one concise sentence: "${formData.service_description}"`,
+        response_json_schema: { type: "object", properties: { summary: { type: "string" } } }
+      });
+      return res.summary;
+    },
+    onSuccess: (summary) => {
+      setFormData(prev => ({ ...prev, ai_summary: summary }));
+      toast.success('AI Summary generated');
+    },
+    onError: (err) => {
+      toast.error('Failed to generate summary: ' + err.message);
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => base44.entities.ClientScheduleLead.delete(recordId),
+    onSuccess: () => {
+      toast.success('Record deleted');
+      navigate(createPageUrl('ScheduleLeads'));
+    }
+  });
+
+  const handleOnMyWay = async () => {
+    try {
+      toast.info("Preparing message...");
+      const clientName = clients?.find(c => c.id === formData.client_profile_id)?.name || 'Client';
+      
+      const { data } = await base44.functions.invoke('generateClientMessage', { 
+          type: 'on_my_way', 
+          context: { clientName, eta: '15-20 minutes' } 
+      });
+      
+      const text = data?.sms_text || `Hi ${clientName}, I'm on my way! ETA 20 mins.`;
+      
+      // Try to open SMS app
+      window.location.href = `sms:?body=${encodeURIComponent(text)}`;
+      toast.success("SMS app opened");
+      
+      // Also copy to clipboard as backup
+      navigator.clipboard.writeText(text);
+      toast.message("Text copied to clipboard just in case!");
+      
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to generate message");
+    }
+  };
+
+  if (isLoading) return <div className="p-8"><Skeleton className="h-96 w-full" /></div>;
+  
+  // Show "Not Found" only if we have an ID but no record found after loading
+  if (recordId && !record && !isLoading) return (
+    <div className="p-12 text-center bg-white rounded-xl shadow-sm border border-slate-200">
+      <h2 className="text-xl font-bold text-slate-900 mb-2">Record Not Found</h2>
+      <p className="text-slate-500 mb-4">The record you are looking for does not exist or has been deleted.</p>
+      <Link to={createPageUrl('ScheduleLeads')}>
+        <Button>Return to Schedule & Leads</Button>
+      </Link>
+    </div>
+  );
+
+  if (!formData) return <div className="p-8"><Skeleton className="h-96 w-full" /></div>;
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-6 pb-20">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Link to={createPageUrl('ScheduleLeads')}>
+            <Button variant="ghost" size="icon" className="hover:bg-slate-100 rounded-full">
+              <ArrowLeft className="w-5 h-5 text-slate-500" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              {!recordId ? 'New Record' : (formData.type === 'lead' ? 'Lead Details' : 'Appointment Details')}
+            </h1>
+            <p className="text-slate-500">
+              {recordId ? `#${recordId.slice(-6)}` : 'Create a new schedule or lead entry'} 
+              {formData.client_profile_id && clients && (
+                <span className="ml-2">• {clients.find(c => c.id === formData.client_profile_id)?.name || 'Unknown Client'}</span>
+              )}
+            </p>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {formData.type === 'schedule' && (
+            <Button 
+              className="bg-green-600 hover:bg-green-700 text-white gap-2 shadow-sm"
+              onClick={handleOnMyWay}
+            >
+              <Navigation className="w-4 h-4" /> On My Way
+            </Button>
+          )}
+          {recordId && (
+            <Button 
+              variant="outline" 
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 gap-2"
+              onClick={() => {
+                if (confirm('Are you sure you want to delete this record?')) {
+                  deleteMutation.mutate();
+                }
+              }}
+            >
+              <Trash2 className="w-4 h-4" /> Delete
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Record Information</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Type</label>
+              <Select 
+                value={formData.type} 
+                onValueChange={(val) => setFormData({...formData, type: val})}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="lead">Lead</SelectItem>
+                  <SelectItem value="schedule">Appointment</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-slate-700">Status</label>
+              <Select 
+                value={formData.status} 
+                onValueChange={(val) => setFormData({...formData, status: val})}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">New</SelectItem>
+                  <SelectItem value="contacted">Contacted</SelectItem>
+                  <SelectItem value="scheduled">Scheduled</SelectItem>
+                  <SelectItem value="needs_callback">Needs Callback</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="canceled">Canceled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="col-span-full space-y-2">
+              <div className="flex justify-between items-center">
+                 <label className="text-sm font-medium text-slate-700">Client</label>
+                 {formData.client_profile_id && (
+                    <Link 
+                      to={`${createPageUrl('ClientDetail')}?id=${formData.client_profile_id}`} 
+                      className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1"
+                    >
+                       View Profile <ArrowLeft className="w-3 h-3 rotate-180" />
+                    </Link>
+                 )}
+              </div>
+              <Select 
+                value={formData.client_profile_id} 
+                onValueChange={(val) => setFormData({...formData, client_profile_id: val})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a client..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients?.map(client => (
+                    <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="col-span-full space-y-2">
+              <label className="text-sm font-medium text-slate-700">Linked Estimate</label>
+              <Select 
+                value={formData.linked_estimate_id || "none"} 
+                onValueChange={(val) => setFormData({...formData, linked_estimate_id: val === "none" ? null : val})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an estimate (optional)..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {estimates
+                    ?.filter(est => !formData.client_profile_id || est.client_profile_id === formData.client_profile_id)
+                    .map(est => (
+                      <SelectItem key={est.id} value={est.id}>
+                        {est.title} — ${est.total_amount?.toLocaleString() || est.amount?.toLocaleString() || '0'}
+                      </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="col-span-full space-y-2">
+              <label className="text-sm font-medium text-slate-700">Title</label>
+              <Input 
+                value={formData.title} 
+                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                placeholder="Short title for this record"
+              />
+            </div>
+
+            <div className="col-span-full space-y-2">
+              <label className="text-sm font-medium text-slate-700">Requested Service Description</label>
+              <Textarea 
+                className="min-h-[80px]"
+                value={formData.service_description} 
+                onChange={(e) => setFormData({...formData, service_description: e.target.value})}
+                placeholder="Detailed description of the service requested..."
+              />
+            </div>
+
+            <div className="col-span-full space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-indigo-500" />
+                  AI Summary
+                </label>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => generateSummaryMutation.mutate()}
+                  disabled={generateSummaryMutation.isPending || !formData.service_description}
+                  className="h-8 text-xs gap-1"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  {generateSummaryMutation.isPending ? 'Generating...' : 'Generate Summary'}
+                </Button>
+              </div>
+              <Input 
+                value={formData.ai_summary} 
+                onChange={(e) => setFormData({...formData, ai_summary: e.target.value})}
+                placeholder="One sentence summary (AI generated)"
+                className="bg-indigo-50/50"
+              />
+            </div>
+
+            <div className="col-span-full space-y-2">
+              <label className="text-sm font-medium text-slate-700">Date & Time</label>
+              <Input 
+                type="datetime-local"
+                value={formData.date} 
+                onChange={(e) => setFormData({...formData, date: e.target.value})}
+              />
+            </div>
+
+            <div className="col-span-full space-y-2">
+              <label className="text-sm font-medium text-slate-700">Notes</label>
+              <Textarea 
+                className="min-h-[100px]"
+                value={formData.notes || ''} 
+                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+              />
+            </div>
+
+            <div className="col-span-full space-y-2 pt-4 border-t border-slate-100">
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-slate-500" />
+                Job/Lead Photos
+              </label>
+              <PhotoUpload 
+                photos={formData.photos} 
+                onChange={(photos) => setFormData({...formData, photos})} 
+              />
+            </div>
+          </div>
+
+          <div className="pt-4 border-t border-slate-100">
+            <Button 
+              className="w-full bg-indigo-600 hover:bg-indigo-700 gap-2"
+              onClick={() => {
+                 if (recordId) {
+                    updateMutation.mutate(formData);
+                 } else {
+                    createMutation.mutate(formData);
+                 }
+              }}
+              disabled={updateMutation.isPending || createMutation.isPending}
+            >
+              <Save className="w-4 h-4" /> 
+              {updateMutation.isPending || createMutation.isPending ? 'Saving...' : (recordId ? 'Save Changes' : 'Create Record')}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
